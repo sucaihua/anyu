@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anyu Shop</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+  <div id="nav-host"></div>
+  <main class="page">
+    <section class="hero" id="hero">
+      <h1>畅享预充值购物</h1>
+      <p>预存余额，一键下单。后台托管，安全可靠。下单即时扣款，无需等待在线支付。</p>
+      <div class="balance-chip" id="balanceChip" style="display:none;">
+        当前余额：<b id="heroBalance">0.00</b>
+      </div>
+    </section>
+
+    <h2 class="page-title" style="margin-bottom: var(--space-4);">在售商品</h2>
+    <div class="cat-tabs" style="margin-bottom: var(--space-4);" id="catTabs"></div>
+    <div class="products-grid" id="grid"></div>
+  </main>
+
+  <script src="/js/app.js"></script>
+  <script>
+    mountNav('home');
+
+    let products = [];
+    let categories = [];
+    let activeCat = 0; // 0 表示全部
+
+    async function loadAll() {
+      // 商品 + 分类 + 余额（如已登录）
+      const [prodRes, catRes] = await Promise.all([
+        API.get('/api/products'),
+        API.get('/api/products/categories').catch(() => ({ data: [] }))
+      ]);
+
+      if (prodRes.code === 0) {
+        products = prodRes.data || [];
+        renderProducts();
+      } else {
+        Toast.error('商品加载失败');
+      }
+
+      if (catRes && catRes.code === 0) {
+        categories = catRes.data || [];
+        renderCats();
+      }
+
+      if (API.getToken()) {
+        try {
+          const bal = await API.get('/api/user/balance');
+          if (bal.code === 0) {
+            document.getElementById('heroBalance').textContent = fmt.money(bal.data.amount);
+            document.getElementById('balanceChip').style.display = 'inline-flex';
+          }
+        } catch (e) {}
+      }
+    }
+
+    function renderCats() {
+      const host = document.getElementById('catTabs');
+      const list = [{ id: 0, name: '全部' }, ...categories];
+      host.innerHTML = list.map((c, i) =>
+        `<button class="cat-tab ${activeCat === c.id ? 'active' : ''}" data-cat="${c.id}" style="animation:cardIn .4s ${i * 40}ms var(--ease-out) backwards;">${escapeHtml(c.name)}</button>`
+      ).join('');
+      host.querySelectorAll('[data-cat]').forEach((b) => {
+        b.addEventListener('click', () => {
+          activeCat = Number(b.dataset.cat);
+          host.querySelectorAll('[data-cat]').forEach((x) => x.classList.toggle('active', Number(x.dataset.cat) === activeCat));
+          renderProducts();
+        });
+      });
+    }
+
+    function renderProducts() {
+      const grid = document.getElementById('grid');
+      const shown = activeCat > 0 ? products.filter((p) => p.category_id === activeCat) : products;
+      if (!shown.length) {
+        grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">
+          <div class="empty-icon">📦</div>
+          暂无在售商品${activeCat > 0 ? '（该分类下为空）' : ''}
+        </div>`;
+        return;
+      }
+      grid.innerHTML = shown.map((p, i) => `
+        <article class="product-card" style="animation-delay:${i * 40}ms;">
+          <div class="product-cover">${escapeHtml(p.name.slice(0, 2) || '商品')}</div>
+          <div class="product-body">
+            ${p.category_name ? `<span class="product-cat">${escapeHtml(p.category_name)}</span>` : ''}
+            <h3 class="product-name">${escapeHtml(p.name)}</h3>
+            <p class="product-desc">${escapeHtml(p.description || '暂无描述')}</p>
+            <div class="product-foot">
+              <div>
+                <div class="product-price">¥${fmt.money(p.price)}</div>
+                <div class="product-stock ${p.stock <= 0 ? 'out' : ''}">${p.stock > 0 ? `库存 ${p.stock}` : '已售罄'}</div>
+              </div>
+              <button class="btn btn-primary btn-sm" data-buy="${p.id}" ${p.stock <= 0 ? 'disabled' : ''}>
+                ${p.stock > 0 ? '立即购买' : '缺货'}
+              </button>
+            </div>
+          </div>
+        </article>
+      `).join('');
+      grid.querySelectorAll('[data-buy]').forEach((b) => {
+        b.addEventListener('click', () => onBuy(Number(b.dataset.buy)));
+      });
+    }
+
+    async function onBuy(pid) {
+      if (!(await requireLogin())) return;
+      const p = products.find((x) => x.id === pid);
+      if (!p) return;
+
+      // 1) 二次确认订单详情
+      const confirmOk = await Modal.confirm({
+        title: '确认下单',
+        content: `
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div><b>商品：</b>${escapeHtml(p.name)}</div>
+            <div><b>单价：</b>¥${fmt.money(p.price)}</div>
+            <div><b>实付：</b><span style="color:var(--c-primary);font-weight:700;font-size:18px;">¥${fmt.money(p.price)}</span></div>
+            <div style="color:var(--c-muted);font-size:13px;">下单即时从余额扣除</div>
+          </div>
+        `,
+        okText: '确认支付',
+        okClass: 'btn-primary'
+      });
+      if (!confirmOk) return;
+
+      // 3) 提交（带幂等键）
+      const idem = 'web_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      const json = await API.post('/api/orders', { productId: pid, idempotencyKey: idem });
+      if (json.code === 0) {
+        Toast.success('下单成功！');
+        // 刷新余额 + 商品（库存变了）
+        setTimeout(() => location.reload(), 800);
+      } else if (json.code === 1006) {
+        Toast.error('余额不足，请联系管理员充值');
+      } else if (json.code === 1007) {
+        Toast.error('库存不足');
+      } else if (json.code === 1005) {
+        Toast.warn('请勿重复提交');
+      } else {
+        Toast.error(json.message || '下单失败');
+      }
+    }
+
+    loadAll();
+  </script>
+</body>
+</html>

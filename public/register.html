@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 - Anyu Shop</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+  <div id="nav-host"></div>
+  <main class="auth-wrap">
+    <div class="auth-card">
+      <h1 class="auth-title">创建账号</h1>
+      <p class="auth-sub">注册后即可享受预充值便捷购物</p>
+      <form id="regForm" novalidate>
+        <div class="field">
+          <label class="field-label">用户名 <span class="req">*</span></label>
+          <input class="input" name="username" autocomplete="username" placeholder="3-50 位字母数字"
+                 pattern="[A-Za-z0-9]{3,50}" required>
+        </div>
+        <div class="field">
+          <label class="field-label">邮箱 <span class="req">*</span></label>
+          <input class="input" type="email" name="email" autocomplete="email" placeholder="请输入邮箱" required>
+        </div>
+        <div class="field">
+          <label class="field-label">密码 <span class="req">*</span></label>
+          <input class="input" type="password" name="password" autocomplete="new-password"
+                 placeholder="8-32 位，需含字母与数字"
+                 pattern="^(?=.*[A-Za-z])(?=.*\d)[\S]{8,32}$" required>
+          <div class="field-hint">至少 8 位，需同时包含字母与数字</div>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" id="submitBtn">注册</button>
+      </form>
+      <div class="auth-foot">已有账号？<a href="/login">前往登录</a></div>
+    </div>
+  </main>
+
+  <script src="/js/app.js"></script>
+  <script>
+    mountNav('');
+    const form = document.getElementById('regForm');
+    const btn = document.getElementById('submitBtn');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      const fd = new FormData(form);
+      const body = Object.fromEntries(fd.entries());
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> 注册中...';
+      try {
+        const json = await API.post('/api/auth/register', body);
+        if (json.code === 0) {
+          Toast.success('注册成功，正在登录...');
+          // 自动登录
+          const login = await API.post('/api/auth/login', {
+            username: body.username,
+            password: body.password
+          });
+          if (login.code === 0) {
+            API.setSession(login.data);
+            setTimeout(() => location.href = '/', 800);
+          } else {
+            setTimeout(() => location.href = '/login', 800);
+          }
+        } else {
+          Toast.error(json.message || '注册失败');
+          btn.disabled = false;
+          btn.textContent = '注册';
+        }
+      } catch (err) {
+        Toast.error('网络错误，请稍后重试');
+        btn.disabled = false;
+        btn.textContent = '注册';
+      }
+    });
+  </script>
+</body>
+</html>

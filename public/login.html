@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - Anyu Shop</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+  <div id="nav-host"></div>
+  <main class="auth-wrap">
+    <div class="auth-card">
+      <h1 class="auth-title">欢迎回来</h1>
+      <p class="auth-sub">登录后即可下单查看订单</p>
+      <form id="loginForm">
+        <div class="field">
+          <label class="field-label">用户名 <span class="req">*</span></label>
+          <input class="input" name="username" autocomplete="username" placeholder="请输入用户名" required>
+        </div>
+        <div class="field">
+          <label class="field-label">密码 <span class="req">*</span></label>
+          <input class="input" type="password" name="password" autocomplete="current-password" placeholder="请输入密码" required>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" id="submitBtn">登录</button>
+      </form>
+      <div class="auth-foot">还没有账号？<a href="/register">立即注册</a></div>
+    </div>
+  </main>
+
+  <script src="/js/app.js"></script>
+  <script>
+    mountNav('');
+    // 登录后的目标页：默认首页；若来自后台则回后台
+    const redirect = new URLSearchParams(location.search).get('redirect') || '';
+    const goTarget = redirect === 'admin' ? '/admin' : (redirect || '/');
+    if (API.getToken()) {
+      Toast.info('已登录，跳转中...');
+      setTimeout(() => location.href = goTarget, 600);
+    }
+    const form = document.getElementById('loginForm');
+    const btn = document.getElementById('submitBtn');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const body = Object.fromEntries(fd.entries());
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> 登录中...';
+      try {
+        const json = await API.post('/api/auth/login', body);
+        if (json.code === 0) {
+          API.setSession(json.data);
+          Toast.success('登录成功');
+          setTimeout(() => location.href = goTarget, 600);
+        } else {
+          Toast.error(json.message || '登录失败');
+          btn.disabled = false;
+          btn.textContent = '登录';
+        }
+      } catch (err) {
+        Toast.error('网络错误，请稍后重试');
+        btn.disabled = false;
+        btn.textContent = '登录';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "name": "anyu-shop",
+  "version": "1.0.0",
+  "description": "用户预充值余额 + 商品下单系统（Node.js + MySQL + Redis）",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "init-db": "node src/scripts/init-db.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "ioredis": "^5.4.1",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "mysql2": "^3.11.0",
+    "nodemailer": "^10.0.10",
+    "winston": "^3.14.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anyu Admin · 后台管理</title>
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div class="admin-pro">
+    <!-- 深色侧边栏 -->
+    <aside class="admin-pro-side" id="side">
+      <div class="admin-brand">
+        <div class="admin-brand-logo">A</div>
+        <div class="admin-brand-text">
+          <b>Anyu Admin</b>
+          <small>控制台 v2.0</small>
+          <a class="admin-brand-back" href="/">← 返回商城</a>
+        </div>
+      </div>
+      <div class="admin-side-title">主导航</div>
+      <button class="admin-side-item active" data-tab="dashboard">
+        <span class="admin-side-icon">📊</span> 概览
+      </button>
+      <button class="admin-side-item" data-tab="users">
+        <span class="admin-side-icon">👥</span> 用户管理
+        <span class="admin-side-badge" id="sideUserBadge">0</span>
+      </button>
+      <button class="admin-side-item" data-tab="products">
+        <span class="admin-side-icon">📦</span> 商品管理
+        <span class="admin-side-badge" id="sideProdBadge">0</span>
+      </button>
+      <button class="admin-side-item" data-tab="categories">
+        <span class="admin-side-icon">🏷️</span> 分类管理
+      </button>
+      <button class="admin-side-item" data-tab="orders">
+        <span class="admin-side-icon">🧾</span> 订单管理
+        <span class="admin-side-badge" id="sideOrdBadge">0</span>
+      </button>
+      <button class="admin-side-item" data-tab="recharges">
+        <span class="admin-side-icon">💰</span> 充值申请
+        <span class="admin-side-badge" id="sideRcBadge">0</span>
+      </button>
+      <div class="admin-side-title">设置</div>
+      <button class="admin-side-item" data-tab="popup">
+        <span class="admin-side-icon">🔔</span> 充值提示配置
+      </button>
+      <button class="admin-side-item" data-tab="mail">
+        <span class="admin-side-icon">📧</span> 邮件提醒配置
+      </button>
+      <div class="admin-side-foot">
+        <div class="admin-side-user" id="sideUser">
+          <div class="ava">A</div>
+          <div class="meta"><b class="uname">-</b><small class="uemail">-</small></div>
+        </div>
+        <div class="admin-side-logout" id="logoutBtn">⎋ 退出登录</div>
+      </div>
+    </aside>
+    <div class="admin-side-mask" id="sideMask"></div>
+
+    <!-- 主区 -->
+    <main class="admin-pro-main">
+
+      <!-- 概览 -->
+      <section id="dashboardView">
+        <div class="admin-bar">
+          <button class="admin-mobile-toggle">☰</button>
+          <div class="admin-crumb"><span>控制台</span><span class="admin-crumb-sep">/</span><b>概览</b></div>
+          <div class="spacer"></div>
+          <button class="btn btn-outline btn-sm" id="dashRefresh">🔄 刷新数据</button>
+        </div>
+        <div class="admin-stats">
+          <div class="stat-block">
+            <div class="stat-block-top"><span class="stat-block-label">用户总数</span><div class="stat-block-icon ic-blue">👥</div></div>
+            <div class="stat-block-value" id="statUsers">-</div>
+            <div class="stat-block-foot">已注册账号</div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-block-top"><span class="stat-block-label">商品总数</span><div class="stat-block-icon ic-violet">📦</div></div>
+            <div class="stat-block-value" id="statProducts">-</div>
+            <div class="stat-block-foot">在售 <span class="up" id="statOnSale">0</span> 个</div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-block-top"><span class="stat-block-label">订单总数</span><div class="stat-block-icon ic-green">🧾</div></div>
+            <div class="stat-block-value" id="statOrders">-</div>
+            <div class="stat-block-foot">全部订单</div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-block-top"><span class="stat-block-label">累计成交额</span><div class="stat-block-icon ic-amber">💰</div></div>
+            <div class="stat-block-value" id="statRevenue">¥0.00</div>
+            <div class="stat-block-foot">仅统计已支付订单</div>
+          </div>
+        </div>
+        <div class="admin-section-title">快捷操作</div>
+        <div class="admin-stats" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+          <div class="stat-block" style="cursor:pointer;" data-jump="users"><div class="stat-block-label">→ 用户管理</div><div style="color:var(--c-muted);font-size:13px;margin-top:8px;">查看用户、给用户充值、禁用账号</div></div>
+          <div class="stat-block" style="cursor:pointer;" data-jump="products"><div class="stat-block-label">→ 商品管理</div><div style="color:var(--c-muted);font-size:13px;margin-top:8px;">新增商品、调整价格库存、上下架</div></div>
+          <div class="stat-block" style="cursor:pointer;" data-jump="orders"><div class="stat-block-label">→ 订单管理</div><div style="color:var(--c-muted);font-size:13px;margin-top:8px;">查看所有订单、处理退款</div></div>
+          <div class="stat-block" style="cursor:pointer;" data-jump="popup"><div class="stat-block-label">→ 弹窗配置</div><div style="color:var(--c-muted);font-size:13px;margin-top:8px;">配置用户充值付款时的提示信息</div></div>
+        </div>
+      </section>
+
+      <!-- 用户管理 -->
+      <section id="usersView" style="display:none;">
+        <div class="admin-bar">
+          <button class="admin-mobile-toggle">☰</button>
+          <div class="admin-crumb"><span>控制台</span><span class="admin-crumb-sep">/</span><span>用户</span><span class="admin-crumb-sep">/</span><b>用户管理</b></div>
+          <div class="spacer"></div>
+        </div>
+        <div class="admin-panel">
+          <div class="admin-panel-head"><div><div class="admin-panel-title">用户列表</div><div class="admin-panel-sub">管理所有用户账号与余额</div></div></div>
+          <div class="admin-toolbar">
+            <input class="input" id="userKw" placeholder="搜索用户名或邮箱..." style="min-width:280px;">
+            <button class="btn btn-primary btn-sm" id="userSearch">🔍 搜索</button>
+            <div class="spacer"></div>
+            <button class="btn btn-outline btn-sm" id="userRefresh">🔄 刷新</button>
+          </div>
+          <div class="admin-panel-body no-pad"><div style="overflow-x:auto;"><table class="admin-table" id="userTable"></table></div></div>
+          <div class="admin-pagination" id="userPager"></div>
+        </div>
+      </section>
+
+      <!-- 商品管理 -->
+      <section id="productsView" style="display:none;">
+        <div class="admin-bar">
+          <button class="admin-mobile-toggle">☰</button>
+          <div class="admin-crumb"><span>控制台</span><span class="admin-crumb-sep">/</span><span>商品</span><span class="admin-crumb-sep">/</span><b>商品管理</b></div>
+          <div class="spacer"></div>
+          <button class="btn btn-primary btn-sm" id="prodNew">+ 新增商品</button>
+        </div>
+        <div class="admin-panel">
+          <div class="admin-panel-head"><div><div class="admin-panel-title">商品列表</div><div class="admin-panel-sub">维护商品信息、价格、库存与上下架状态</div></div></div>
+          <div class="admin-toolbar">
+            <input class="input" id="prodKw" placeholder="搜索商品名称..." style="min-width:220px;">
+            <select class="select" id="prodCat" style="width:auto;">
+              <option value="">全部分类</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="prodSearch">🔍 搜索</button>
+            <div class="spacer"></div>
+            <button class="btn btn-outline btn-sm" id="prodRefresh">🔄 刷新</button>
+          </div>
+          <div class="admin-panel-body no-pad"><div style="overflow-x:auto;"><table class="admin-table" id="prodTable"></table></div></div>
+          <div class="admin-pagination" id="prodPager"></div>
+        </div>
+      </section>
+
+      <!-- 分类管理 -->
+      <section id="categoriesView" style="display:none;">
+        <div class="admin-bar">
+          <button class="admin-mobile-toggle">☰</button>
+          <div class="admin-crumb"><span>控制台</span><span class="admin-crumb-sep">/</span><span>商品</span><span class="admin-crumb-sep">/</span><b>分类管理</b></div>
+          <div class="spacer"></div>
+          <button class="btn btn-primary btn-sm" id="catNew">+ 新增分类</button>
+        </div>
+        <div class="admin-panel">
+          <div class="admin-panel-head"><div><div class="admin-panel-title">商品分类列表</div><div class="admin-panel-sub">管理商品分类，商品可归属到不同分类，前台按分类筛选</div></div></div>
+          <div class="admin-panel-body no-pad"><div style="overflow-x:auto;"><table class="admin-table" id="catTable"></table></div></div>
+        </div>
+      </section>
+
+      <!-- 订单管理 -->
+      <section id="ordersView" style="display:none;">
+        <div class="admin-bar">
+          <button class="admin-mobile-toggle">☰</button>
+          <div class="admin-crumb"><span>控制台</span><span class="admin-crumb-sep">/</span><span>订单</span><span class="admin-crumb-sep">/</span><b>订单管理</b></div>
+          <div class="spacer"></div>
+        </div>
+        <div class="admin-panel">
+          <div class="admin-panel-head"><div><div class="admin-panel-title">订单列表</div><div class="admin-panel-sub">所有用户下单记录，可处理退款</div></div></div>
+          <div class="admin-toolbar">
+            <input class="input" id="ordKw" placeholder="搜索订单号或商品名..." style="min-width:280px;">
+            <select class="select" id="ordStatus" style="width:auto;min-width:140px;">
+              <option value="-1">全部状态</option><option value="0">待支付</option><option value="1">已支付</option><option value="2">已退款</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="ordSearch">🔍 搜索</button>
+            <div class="spacer"></div>
+            <button class="btn btn-outline btn-sm" id="ordRefresh">🔄 刷新</button>
+          </div>
+          <div class="admin-panel-body no-pad"><div style="overflow-x:auto;"><table class="admin-table" id="ordTable"></table></div></div>
+          <div class="admin-pagination" id="ordPager"></div>
+        </div>
+      </section>
+
+      <!-- 充值申请 -->
+      <section id="rechargesView" style="display:none;">
+        <div class="admin-bar">
+          <button class="admin-mobile-toggle">☰</button>
+          <div class="admin-crumb"><span>控制台</span><span class="admin-crumb-sep">/</span><span>财务</span><span class="admin-crumb-sep">/</span><b>充值申请</b></div>
+          <div class="spacer"></div>
+        </div>
+        <div class="admin-panel">
+          <div class="admin-panel-head"><div><div class="admin-panel-title">充值申请列表</div><div class="admin-panel-sub">用户提交的线下充值申请，核实到账后点击「确认到账」为其加余额</div></div></div>
+          <div class="admin-toolbar">
+            <input class="input" id="rcKw" placeholder="搜索用户名 / 邮箱 / 单号..." style="min-width:260px;">
+            <select class="select" id="rcStatus" style="width:auto;min-width:140px;">
+              <option value="-1">全部状态</option><option value="0">待确认</option><option value="1">已到账</option><option value="2">已拒绝</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="rcSearch">🔍 搜索</button>
+            <div class="spacer"></div>
+            <button class="btn btn-outline btn-sm" id="rcRefresh">🔄 刷新</button>
+          </div>
+          <div class="admin-panel-body no-pad"><div style="overflow-x:auto;"><table class="admin-table" id="rcTable"></table></div></div>
+          <div class="admin-pagination" id="rcPager"></div>
+        </div>
+      </section>
+
+      <!-- 弹窗配置 -->
+      <section id="popupView" style="display:none;">
+        <div class="admin-bar">
+          <button class="admin-mobile-toggle">☰</button>
+          <div class="admin-crumb"><span>控制台</span><span class="admin-crumb-sep">/</span><span>设置</span><span class="admin-crumb-sep">/</span><b>充值提示配置</b></div>
+          <div class="spacer"></div>
+        </div>
+        <div class="admin-panel">
+          <div class="admin-panel-head"><div><div class="admin-panel-title">充值付款提示配置</div><div class="admin-panel-sub">开启后在用户点击充值「付款」按钮时会弹出该提示</div></div></div>
+          <div class="admin-panel-body">
+            <form style="max-width:560px;">
+              <div class="field"><label class="field-label">是否启用</label>
+                <label class="switch"><input type="checkbox" id="popEnabled"><span class="switch-slider"></span></label>
+                <span style="margin-left:12px;font-size:13px;color:var(--c-muted);" id="popEnabledText">已关闭</span></div>
+              <div class="field"><label class="field-label">标题 <span style="color:var(--c-danger);">*</span></label>
+                <input class="input" id="popTitle" placeholder="如：充值提示"></div>
+              <div class="field"><label class="field-label">内容 <span style="color:var(--c-danger);">*</span></label>
+                <textarea class="textarea" id="popContent" placeholder="提示内容..."></textarea>
+                <div class="field-hint">支持纯文本，将展示在用户充值「付款」提交时的弹窗中</div></div>
+              <button type="button" class="btn btn-primary" id="popSave">💾 保存配置</button>
+            </form>
+            <div class="popup-preview">
+              <div class="popup-preview-title" id="previewTitle">充值提示</div>
+              <div class="popup-preview-content" id="previewContent">请确认转账信息无误后再确认付款。</div>
+              <div class="popup-preview-note">↑ 用户端实际展示效果预览</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 邮件提醒配置 -->
+      <section id="mailView" style="display:none;">
+        <div class="admin-bar">
+          <button class="admin-mobile-toggle">☰</button>
+          <div class="admin-crumb"><span>控制台</span><span class="admin-crumb-sep">/</span><span>设置</span><span class="admin-crumb-sep">/</span><b>邮件提醒配置</b></div>
+          <div class="spacer"></div>
+          <button class="btn btn-outline btn-sm" id="mailRefresh">🔄 刷新</button>
+        </div>
+        <div class="admin-panel">
+          <div class="admin-panel-head"><div><div class="admin-panel-title">下单邮箱提醒</div><div class="admin-panel-sub">用户下完订单后，自动向用户注册邮箱发送下单通知</div></div></div>
+          <div class="admin-panel-body">
+            <form class="admin-form" onsubmit="return false;">
+              <div class="field"><label class="field-label">是否启用邮件提醒</label>
+                <label class="switch"><input type="checkbox" id="mailEnabled"><span class="switch-slider"></span></label>
+                <span style="margin-left:12px;font-size:13px;color:var(--c-muted);" id="mailEnabledText">已关闭</span>
+                <div class="field-hint">开启后，用户每成功下一单即触发邮件通知；关闭或未配置 SMTP 时自动跳过。</div></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div class="field"><label class="field-label">SMTP 主机 <span style="color:var(--c-danger);">*</span></label>
+                  <input class="input" id="mailHost" placeholder="如 smtp.qq.com" style="width:100%;"></div>
+                <div class="field"><label class="field-label">端口 <span style="color:var(--c-danger);">*</span></label>
+                  <input class="input" id="mailPort" type="number" min="1" max="65535" value="465" style="width:100%;"></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div class="field"><label class="field-label">SMTP 账号 <span style="color:var(--c-danger);">*</span></label>
+                  <input class="input" id="mailUser" placeholder="如 xxx@qq.com" style="width:100%;"></div>
+                <div class="field"><label class="field-label">SMTP 授权码 <span style="color:var(--c-danger);">*</span></label>
+                  <input class="input" id="mailPass" type="password" placeholder="留空则保持不变" style="width:100%;"></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div class="field"><label class="field-label">发件人名称</label>
+                  <input class="input" id="mailFromName" value="Anyu" style="width:100%;"></div>
+                <div class="field"><label class="field-label">发件邮箱</label>
+                  <input class="input" id="mailFromEmail" placeholder="默认同 SMTP 账号" style="width:100%;"></div>
+              </div>
+              <div class="field" style="margin-top:14px;"><label class="field-label">通知下单用户</label>
+                <label class="switch"><input type="checkbox" id="mailNotifyUser" checked><span class="switch-slider"></span></label>
+                <div class="field-hint">是否把下单通知发到用户注册邮箱</div></div>
+              <div class="field"><label class="field-label">额外通知邮箱（可选）</label>
+                <input class="input" id="mailAdminTo" placeholder="多个用英文逗号分隔，如 a@x.com,b@y.com（管理员收到相同提示）" style="width:100%;"></div>
+            </form>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid var(--c-border);padding-top:16px;">
+              <button class="btn btn-primary" id="mailSave">💾 保存配置</button>
+              <button class="btn btn-outline" id="mailTest">📨 发送测试邮件</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="/admin/admin.js"></script>
+</body>
+</html>

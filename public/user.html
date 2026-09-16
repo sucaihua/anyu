@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人中心 - Anyu Shop</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+  <div id="nav-host"></div>
+  <main class="page">
+    <div class="page-header">
+      <h1 class="page-title">个人中心</h1>
+      <p class="page-sub">查看您的余额、消费充值记录与订单</p>
+    </div>
+
+    <div class="user-grid">
+      <aside>
+        <div class="balance-card">
+          <div class="balance-label">账户余额</div>
+          <div class="balance-amount"><small>¥</small><span id="balAmount">0.00</span></div>
+          <button class="btn btn-primary btn-sm" id="rechargeBtn" style="width:100%;margin-top:14px;justify-content:center;">+ 充值</button>
+          <div class="balance-meta">充值后到账由后台确认，请保留转账凭证</div>
+        </div>
+        <nav class="user-menu">
+          <button class="user-menu-item active" data-tab="records">📋 流水记录</button>
+          <button class="user-menu-item" data-tab="recharge">💰 我的充值</button>
+          <button class="user-menu-item" data-tab="orders">🧾 我的订单</button>
+        </nav>
+      </aside>
+
+      <section>
+        <div id="recordsView">
+          <div class="toolbar">
+            <select class="select" id="recType" style="width:auto;">
+              <option value="0">全部类型</option>
+              <option value="1">充值</option>
+              <option value="2">消费</option>
+              <option value="3">退款</option>
+            </select>
+            <div class="spacer"></div>
+            <button class="btn btn-outline btn-sm" id="recRefresh">刷新</button>
+          </div>
+          <div id="recTable"></div>
+          <div class="pagination" id="recPager"></div>
+        </div>
+
+        <div id="ordersView" style="display:none;">
+          <div class="toolbar">
+            <div class="spacer"></div>
+            <button class="btn btn-outline btn-sm" id="ordRefresh">刷新</button>
+          </div>
+          <div id="ordTable"></div>
+          <div class="pagination" id="ordPager"></div>
+        </div>
+
+        <div id="rechargeView" style="display:none;">
+          <div style="background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--radius);padding:18px;margin-bottom:var(--space-4);">
+            <div style="font-weight:700;font-size:15px;margin-bottom:14px;">提交充值</div>
+            <form onsubmit="return false;">
+              <div class="field"><label class="field-label">充值金额（元）<span style="color:var(--c-danger);">*</span></label>
+                <input class="input" id="rcAmount" type="number" min="1" step="0.01" placeholder="请输入充值金额" style="width:100%;">
+                <div class="field-hint">请按此金额转账到财务收款账户，提交后等待后台确认到账</div></div>
+              <div class="field"><label class="field-label">备注</label>
+                <input class="input" id="rcRemark" placeholder="可选，如：银行卡转账订单号" style="width:100%;"></div>
+              <button class="btn btn-primary" id="rcSubmit" style="justify-content:center;width:200px;">确认付款并提交</button>
+            </form>
+          </div>
+          <div style="display:flex;align-items:center;margin-bottom:12px;"><b style="font-size:15px;">我的充值记录</b><div class="spacer"></div><button class="btn btn-outline btn-sm" id="rcRefresh">刷新</button></div>
+          <div id="rcTable"></div>
+          <div class="pagination" id="rcPager"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/js/app.js"></script>
+  <script>
+    (async () => {
+      if (!(await requireLogin())) return;
+      mountNav('user');
+
+      let recPage = 1, ordPage = 1;
+      const SIZE = 10;
+
+      async function loadBalance() {
+        const r = await API.get('/api/user/balance');
+        if (r.code === 0) document.getElementById('balAmount').textContent = fmt.money(r.data.amount);
+      }
+
+      const REC_TYPE_MAP = { 1: '充值', 2: '消费', 3: '退款' };
+      async function loadRecords() {
+        const type = document.getElementById('recType').value;
+        const box = document.getElementById('recTable');
+        renderLoading(box, 4);
+        const r = await API.get(`/api/user/records?type=${type}&page=${recPage}&size=${SIZE}`);
+        if (r.code !== 0) return Toast.error(r.message);
+        const list = r.data.list || [];
+        if (!list.length) {
+          box.innerHTML = `<div class="empty"><div class="empty-icon">📭</div>暂无记录</div>`;
+        } else {
+          box.innerHTML = `
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>类型</th><th>金额</th><th>变动后余额</th><th>备注</th><th>时间</th></tr></thead>
+                <tbody>
+                  ${list.map((x) => `
+                    <tr>
+                      <td><span class="badge ${x.type === 1 ? 'badge-success' : x.type === 2 ? 'badge-danger' : 'badge-warn'}">${REC_TYPE_MAP[x.type] || '-'}</span></td>
+                      <td style="font-weight:600;">${x.type === 1 ? '+' : '-'}¥${fmt.money(x.amount)}</td>
+                      <td>¥${fmt.money(x.balance_after)}</td>
+                      <td>${escapeHtml(x.remark || '-')}</td>
+                      <td>${fmt.date(x.created_at)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>`;
+        }
+        renderPager('recPager', recPage, r.data.total, (p) => { recPage = p; loadRecords(); });
+      }
+
+      async function loadOrders() {
+        const box = document.getElementById('ordTable');
+        renderLoading(box, 3);
+        const r = await API.get(`/api/orders/my?page=${ordPage}&size=${SIZE}`);
+        if (r.code !== 0) return Toast.error(r.message);
+        const list = r.data.list || [];
+        if (!list.length) {
+          box.innerHTML = `<div class="empty"><div class="empty-icon">🧾</div>暂无订单</div>`;
+        } else {
+          const STATUS = { 0: ['待支付','badge-warn'], 1: ['已支付','badge-success'], 2: ['已退款','badge-muted'] };
+          box.innerHTML = `
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>订单号</th><th>商品</th><th>金额</th><th>状态</th><th>下单时间</th></tr></thead>
+                <tbody>
+                  ${list.map((o) => `
+                    <tr>
+                      <td style="font-family:monospace;font-size:12px;">${escapeHtml(o.order_no)}</td>
+                      <td>${escapeHtml(o.product_name)}</td>
+                      <td style="font-weight:600;">¥${fmt.money(o.amount)}</td>
+                      <td><span class="badge ${STATUS[o.status][1]}">${STATUS[o.status][0]}</span></td>
+                      <td>${fmt.date(o.paid_at || o.created_at)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>`;
+        }
+        renderPager('ordPager', ordPage, r.data.total, (p) => { ordPage = p; loadOrders(); });
+      }
+
+      function renderPager(id, page, total, onChange) {
+        const host = document.getElementById(id);
+        const pages = Math.ceil(total / SIZE) || 1;
+        host.innerHTML = `
+          <button ${page <= 1 ? 'disabled' : ''} data-p="${page - 1}">上一页</button>
+          <span class="pg-info">第 ${page} / ${pages} 页（共 ${total} 条）</span>
+          <button ${page >= pages ? 'disabled' : ''} data-p="${page + 1}">下一页</button>`;
+        host.querySelectorAll('button[data-p]').forEach((b) => {
+          b.addEventListener('click', () => onChange(Number(b.dataset.p)));
+        });
+      }
+
+      // tab 切换
+      document.querySelectorAll('.user-menu-item').forEach((b) => {
+        b.addEventListener('click', () => {
+          document.querySelectorAll('.user-menu-item').forEach((x) => x.classList.remove('active'));
+          b.classList.add('active');
+          const tab = b.dataset.tab;
+          document.getElementById('recordsView').style.display = tab === 'records' ? '' : 'none';
+          document.getElementById('ordersView').style.display = tab === 'orders' ? '' : 'none';
+          document.getElementById('rechargeView').style.display = tab === 'recharge' ? '' : 'none';
+          if (tab === 'orders') loadOrders();
+          if (tab === 'recharge') loadRecharges();
+        });
+      });
+      document.getElementById('recType').addEventListener('change', () => { recPage = 1; loadRecords(); });
+      document.getElementById('recRefresh').addEventListener('click', loadRecords);
+      document.getElementById('ordRefresh').addEventListener('click', loadOrders);
+      document.getElementById('rcRefresh').addEventListener('click', loadRecharges);
+
+      // 充值：付款提交（先弹充值提示弹窗，后台配置）
+      async function doRecharge() {
+        const amount = Number(document.getElementById('rcAmount').value);
+        const remark = document.getElementById('rcRemark').value.trim();
+        if (!(amount > 0)) return Toast.error('请输入正确的充值金额');
+        // 读取后台配置的充值提示弹窗（如有 enabled 则先弹出）
+        try {
+          const pp = await API.get('/api/orders/popup');
+          if (pp.code === 0 && pp.data && pp.data.enabled) {
+            const ok = await Modal.confirm({
+              title: pp.data.title || '充值提示',
+              content: escapeHtml(pp.data.content || '请确认转账信息后再提交充值。'),
+              okText: '我已付款'
+            });
+            if (!ok) return;
+          }
+        } catch (e) {}
+        const r = await API.post('/api/user/recharge/submit', { amount, remark });
+        if (r.code === 0) {
+          Toast.success(r.message || '充值申请已提交');
+          document.getElementById('rcAmount').value = '';
+          document.getElementById('rcRemark').value = '';
+          loadRecharges();
+        } else {
+          Toast.error(r.message);
+        }
+      }
+      document.getElementById('rcSubmit').addEventListener('click', doRecharge);
+      document.getElementById('rechargeBtn').addEventListener('click', () => {
+        document.querySelector('.user-menu-item[data-tab="recharge"]').click();
+      });
+
+      let rcPage = 1;
+      const RC_STATUS = { 0: ['待确认', 'badge-warn'], 1: ['已到账', 'badge-success'], 2: ['已拒绝', 'badge-danger'] };
+      async function loadRecharges() {
+        const box = document.getElementById('rcTable');
+        renderLoading(box, 3);
+        const r = await API.get(`/api/user/recharge/list?page=${rcPage}&size=${SIZE}`);
+        if (r.code !== 0) return Toast.error(r.message);
+        const list = r.data.list || [];
+        if (!list.length) {
+          box.innerHTML = `<div class="empty"><div class="empty-icon">🪙</div>暂无充值记录</div>`;
+        } else {
+          box.innerHTML = `
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>单号</th><th>金额</th><th>状态</th><th>备注</th><th>提交时间</th></tr></thead>
+                <tbody>
+                  ${list.map((x) => `
+                    <tr>
+                      <td style="font-family:monospace;font-size:12px;">#${x.id}</td>
+                      <td style="font-weight:600;">¥${fmt.money(x.amount)}</td>
+                      <td><span class="badge ${RC_STATUS[x.status][1]}">${RC_STATUS[x.status][0]}</span></td>
+                      <td>${escapeHtml(x.remark || '-')}</td>
+                      <td>${fmt.date(x.created_at)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>`;
+        }
+        renderPager('rcPager', rcPage, r.data.total, (p) => { rcPage = p; loadRecharges(); });
+      }
+
+      loadBalance();
+      loadRecords();
+    })();
+  </script>
+</body>
+</html>
