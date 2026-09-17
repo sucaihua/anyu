@@ -151,14 +151,32 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
     display: none;
     flex-direction: column;
     align-items: stretch;
-    gap: var(--space-2);
-    padding: var(--space-2) 0 var(--space-4);
+    gap: 4px;
+    padding: 8px 0 12px;
     margin: 0;
   }
   .nav-links.open, .nav-right.open { display: flex; }
-  .nav-links a { width: 100%; }
-  .nav-right { align-items: stretch; }
-  .nav-right .btn { justify-content: center; }
+  .nav-links a {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 15px;
+  }
+  .nav-right { align-items: stretch; gap: 4px; padding-top: 0; }
+  .nav-right .btn {
+    justify-content: flex-start;
+    width: 100%;
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 15px;
+  }
+  .nav-right .nav-user {
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+  .nav-links + .nav-right { margin-top: 4px; }
 }
 
 /* ========== 按钮 ========== */
