@@ -98,4 +98,17 @@ async function adminList(params) {
   return r;
 }
 
-module.exports = { listOnSale, getDetail, adminCreate, adminUpdate, adminList };
+async function adminRemove(id) {
+  // 已有订单的商品不允许物理删除（订单依赖商品快照展示）
+  const orderCount = await productModel.countOrdersByProduct(id);
+  if (orderCount > 0) {
+    throw new AppError(ERR.CONFLICT, `该商品已有 ${orderCount} 笔订单，无法删除，建议改为下架`);
+  }
+  const affected = await productModel.remove(id);
+  if (!affected) throw new AppError(ERR.NOT_FOUND, '商品不存在');
+  await cache.del(KEY_LIST);
+  await cache.del(KEY_DETAIL(id));
+  return { ok: true };
+}
+
+module.exports = { listOnSale, getDetail, adminCreate, adminUpdate, adminList, adminRemove };

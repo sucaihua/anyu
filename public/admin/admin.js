@@ -496,12 +496,26 @@ async function requireAdmin() {
           <td class="num">${p.stock}</td>
           <td><label class="switch"><input type="checkbox" data-toggle="${p.id}" ${p.status === 1 ? 'checked' : ''}><span class="switch-slider"></span></label></td>
           <td style="color:var(--c-muted);font-size:13px;">${fmt.date(p.updated_at)}</td>
-          <td><div class="row-actions" style="justify-content:flex-end;"><button class="btn btn-outline" data-edit="${p.id}">✏️ 编辑</button></div></td></tr>`).join('')}
+          <td><div class="row-actions" style="justify-content:flex-end;"><button class="btn btn-outline" data-edit="${p.id}">✏️ 编辑</button><button class="btn btn-outline" style="color:var(--c-danger);border-color:rgba(220,38,38,.35);" data-del="${p.id}">🗑 删除</button></div></td></tr>`).join('')}
         </tbody>`;
     }
     renderPager('prodPager', prodPage, r.data.total, (p) => { prodPage = p; loadProducts(); });
   }
   document.getElementById('prodTable').addEventListener('click', (e) => { if (e.target.dataset.edit) openProductEditor(Number(e.target.dataset.edit)); });
+  document.getElementById('prodTable').addEventListener('click', async (e) => {
+    if (!e.target.dataset.del) return;
+    const id = Number(e.target.dataset.del);
+    const ok = await Modal.confirm({
+      title: '删除商品',
+      content: `确定删除该商品（#${id}）吗？此操作不可恢复。若商品已有订单记录，将无法删除。`,
+      okText: '删除',
+      okClass: 'btn-danger'
+    });
+    if (!ok) return;
+    const r = await Auth.del(`/api/products/admin/${id}`);
+    if (r.code === 0) { Toast.success('删除成功'); loadProducts(); }
+    else Toast.error(r.message);
+  });
   document.getElementById('prodTable').addEventListener('change', async (e) => {
     if (e.target.dataset.toggle) {
       const id = Number(e.target.dataset.toggle);

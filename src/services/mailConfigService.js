@@ -117,19 +117,22 @@ async function sendRechargeSubmitNotify({ username, amount, requestId, remark })
     if (!secret || Number(secret.enabled) !== 1) return;
     if (!mailer.isSmtpUsable(secret)) return;
     if (Number(secret.notify_recharge) !== 1) return;
-    if (!secret.admin_to) return;
 
-    secret.admin_to
+    // 管理员邮箱：优先 admin_to；未配置时默认发到 SMTP 发送邮箱（mail_user）
+    const targets = (secret.admin_to || '')
       .split(/[,，]/)
       .map((s) => s.trim())
-      .filter(Boolean)
-      .forEach((adminMail) => {
-        mailer.send(secret, {
-          to: adminMail,
-          subject: '【Anyu】新充值申请提醒',
-          html: rechargeHtml({ kind: 'submit', username, amount, requestId, remark })
-        }).catch((e) => logger.warn('[mail] 充值申请通知发送失败', { err: e.message, to: adminMail }));
-      });
+      .filter(Boolean);
+    if (!targets.length && secret.mail_user) targets.push(secret.mail_user);
+    if (!targets.length) return;
+
+    targets.forEach((adminMail) => {
+      mailer.send(secret, {
+        to: adminMail,
+        subject: '【Anyu】新充值申请提醒',
+        html: rechargeHtml({ kind: 'submit', username, amount, requestId, remark })
+      }).catch((e) => logger.warn('[mail] 充值申请通知发送失败', { err: e.message, to: adminMail }));
+    });
   } catch (err) {
     logger.error('[mail] 充值申请邮件提醒失败', { err: err.message });
   }

@@ -70,6 +70,17 @@ async function update(id, { name, price, stock, cover, description, category_id 
   return r.affectedRows;
 }
 
+// 统计该商品的订单数量（用于删除前校验）
+async function countOrdersByProduct(id) {
+  const rows = await query('SELECT COUNT(*) AS c FROM orders WHERE product_id = ?', [id]);
+  return Number(rows[0].c || 0);
+}
+
+async function remove(id) {
+  const r = await execute('DELETE FROM products WHERE id = ?', [id]);
+  return r.affectedRows;
+}
+
 // 行锁查商品（事务里调用）
 async function findByIdForUpdate(conn, id) {
   const [rows] = await conn.execute(
@@ -94,6 +105,8 @@ module.exports = {
   listForAdmin,
   create,
   update,
+  countOrdersByProduct,
+  remove,
   findByIdForUpdate,
   decreaseStock
 };

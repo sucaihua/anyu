@@ -13,5 +13,6 @@ router.get('/:id', ctrl.detail);
 router.get('/admin/list', authRequired, adminRequired, ctrl.adminList);
 router.post('/admin', authRequired, adminRequired, validate(ctrl.productSchema), ctrl.adminCreate);
 router.put('/admin/:id', authRequired, adminRequired, validate(ctrl.productSchema), ctrl.adminUpdate);
+router.delete('/admin/:id', authRequired, adminRequired, ctrl.adminRemove);
 
 module.exports = router;

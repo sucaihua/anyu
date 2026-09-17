@@ -81,4 +81,15 @@ async function adminList(req, res, next) {
   }
 }
 
-module.exports = { list, detail, listCategories, adminCreate, adminUpdate, adminList, productSchema };
+async function adminRemove(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(200).json({ code: 1001, message: '参数错误', data: null });
+    const r = await productService.adminRemove(id);
+    return success(res, r, '删除成功');
+  } catch (e) {
+    next(e);
+  }
+}
+
+module.exports = { list, detail, listCategories, adminCreate, adminUpdate, adminList, adminRemove, productSchema };
