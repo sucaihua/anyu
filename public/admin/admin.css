@@ -65,6 +65,7 @@ img{max-width:100%;display:block;}
 .admin-side-user .meta small{color:#64748b;font-size:11px;}
 .admin-side-logout{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#cbd5e1;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s ease;user-select:none;}
 .admin-side-logout:hover{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.35);color:#f87171;}
+.admin-side-action:hover{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.4);color:#a5b4fc;}
 
 /* 移动端侧边栏抽屉 */
 .admin-side-mask{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:35;opacity:0;pointer-events:none;transition:opacity .3s var(--ease);}

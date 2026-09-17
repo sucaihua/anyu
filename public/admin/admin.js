@@ -230,6 +230,69 @@ async function requireAdmin() {
     setTimeout(() => location.replace('/login'), 600);
   });
 
+  // 管理员修改密码
+  document.getElementById('chgPwdBtn').addEventListener('click', () => {
+    const m = Modal.open({
+      title: '修改密码',
+      body: `
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="field"><label class="field-label">原密码</label><input class="input" type="password" id="pwdOld" placeholder="请输入原密码" style="width:100%;"></div>
+          <div class="field"><label class="field-label">新密码</label><input class="input" type="password" id="pwdNew" placeholder="8-32 位，含字母与数字" style="width:100%;"></div>
+          <div class="field"><label class="field-label">确认新密码</label><input class="input" type="password" id="pwdConfirm" placeholder="再次输入新密码" style="width:100%;"></div>
+        </div>`,
+      footer: `<button class="btn btn-ghost" data-act="cancel">取消</button><button class="btn btn-primary" data-act="ok">确认修改</button>`
+    });
+    m.el.querySelector('[data-act=cancel]').addEventListener('click', () => m.close());
+    m.el.querySelector('[data-act=ok]').addEventListener('click', async () => {
+      const oldPwd = m.el.querySelector('#pwdOld').value;
+      const newPwd = m.el.querySelector('#pwdNew').value;
+      const confirmPwd = m.el.querySelector('#pwdConfirm').value;
+      if (!oldPwd || !newPwd) return Toast.warn('请填写完整');
+      if (!/^(?=.*[A-Za-z])(?=.*\d)[\S]{8,32}$/.test(newPwd)) return Toast.warn('新密码需 8-32 位且含字母与数字');
+      if (newPwd !== confirmPwd) return Toast.warn('两次输入的新密码不一致');
+      const r = await Auth.put('/api/auth/password', { oldPassword: oldPwd, newPassword: newPwd });
+      if (r.code === 0) {
+        Toast.success('密码修改成功，请重新登录');
+        m.close();
+        setTimeout(() => { Auth.clearSession(); location.replace('/login'); }, 900);
+      } else {
+        Toast.error(r.message);
+      }
+    });
+  });
+
+  // 管理员修改邮箱
+  document.getElementById('chgEmailBtn').addEventListener('click', () => {
+    const m = Modal.open({
+      title: '修改邮箱',
+      body: `
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="field"><label class="field-label">新邮箱</label><input class="input" id="newEmail" type="email" placeholder="请输入新的邮箱地址" style="width:100%;"></div>
+          <div class="field-hint">修改后侧边栏与邮件通知将使用新邮箱</div>
+        </div>`,
+      footer: `<button class="btn btn-ghost" data-act="cancel">取消</button><button class="btn btn-primary" data-act="ok">确认修改</button>`
+    });
+    m.el.querySelector('[data-act=cancel]').addEventListener('click', () => m.close());
+    m.el.querySelector('[data-act=ok]').addEventListener('click', async () => {
+      const email = m.el.querySelector('#newEmail').value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Toast.warn('请输入正确的邮箱地址');
+      const r = await Auth.put('/api/auth/email', { email });
+      if (r.code === 0) {
+        Toast.success('邮箱修改成功');
+        m.close();
+        // 同步更新本地会话与侧边栏展示
+        const user = Auth.getUser();
+        if (user) {
+          user.email = email;
+          Auth.setSession({ accessToken: Auth.getToken(), refreshToken: localStorage.getItem('anyu_refresh'), user });
+          document.querySelector('#sideUser .uemail').textContent = email;
+        }
+      } else {
+        Toast.error(r.message);
+      }
+    });
+  });
+
   // 分页
   function renderPager(id, page, total, onChange) {
     const host = document.getElementById(id);

@@ -144,8 +144,39 @@ async function logout({ refreshToken }) {
   return { ok: true };
 }
 
+// 修改密码：校验旧密码，更新哈希，并吊销该用户全部刷新令牌（强制重新登录）
+async function changePassword(userId, { oldPassword, newPassword }) {
+  const user = await userModel.findByIdWithPass(userId);
+  if (!user) throw new AppError(ERR.NOT_FOUND, '用户不存在');
+  if (user.status === 0) throw new AppError(ERR.ACCOUNT_DISABLED, '账号已被禁用');
+
+  const ok = await comparePassword(oldPassword, user.password_hash);
+  if (!ok) throw new AppError(ERR.PARAMS, '原密码不正确');
+
+  const passwordHash = await hashPassword(newPassword);
+  await userModel.updatePasswordHash(userId, passwordHash);
+  await userModel.revokeAllByUser(userId);
+  return { ok: true };
+}
+
+// 修改邮箱：校验唯一性后更新
+async function changeEmail(userId, { email }) {
+  const user = await userModel.findById(userId);
+  if (!user) throw new AppError(ERR.NOT_FOUND, '用户不存在');
+  if (user.status === 0) throw new AppError(ERR.ACCOUNT_DISABLED, '账号已被禁用');
+  const newEmail = (email || '').trim().toLowerCase();
+  if (!newEmail) throw new AppError(ERR.PARAMS, '邮箱不能为空');
+  if (newEmail === (user.email || '').toLowerCase()) return { ok: true };
+
+  const exist = await userModel.findByEmail(newEmail);
+  if (exist && exist.id !== userId) throw new AppError(ERR.CONFLICT, '该邮箱已被使用');
+
+  await userModel.updateEmail(userId, newEmail);
+  return { ok: true };
+}
+
 function bogusDelay() {
   return new Promise((r) => setTimeout(r, 200 + Math.floor(Math.random() * 200)));
 }
 
-module.exports = { register, login, refresh, logout };
+module.exports = { register, login, refresh, logout, changePassword, changeEmail };

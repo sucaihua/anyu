@@ -13,5 +13,7 @@ router.post('/logout', ctrl.logout);
 
 // 当前用户
 router.get('/me', authRequired, ctrl.me);
+router.put('/password', authRequired, validate(ctrl.changePasswordSchema), ctrl.changePassword);
+router.put('/email', authRequired, validate(ctrl.changeEmailSchema), ctrl.changeEmail);
 
 module.exports = router;

@@ -15,6 +15,12 @@ async function findById(id) {
   return rows[0] || null;
 }
 
+// 修改密码等需要密码哈希的场景使用（密码不对外返回）
+async function findByIdWithPass(id) {
+  const rows = await query('SELECT id, username, email, role, status, password_hash FROM users WHERE id = ? LIMIT 1', [id]);
+  return rows[0] || null;
+}
+
 // 查询账号状态，用于中间件实时校验（防止被禁用后凭旧 token 继续使用）
 async function getStatus(id) {
   const rows = await query('SELECT status FROM users WHERE id = ? LIMIT 1', [id]);
@@ -62,6 +68,18 @@ async function setRole(id, role) {
   return r.affectedRows;
 }
 
+// 修改密码（登录用户改自己密码）
+async function updatePasswordHash(id, passwordHash) {
+  const r = await execute('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, id]);
+  return r.affectedRows;
+}
+
+// 修改邮箱（登录用户改自己邮箱）
+async function updateEmail(id, email) {
+  const r = await execute('UPDATE users SET email = ? WHERE id = ?', [email, id]);
+  return r.affectedRows;
+}
+
 // 刷新令牌
 async function saveRefreshToken(userId, tokenHash, expiresAt) {
   await execute(
@@ -90,11 +108,14 @@ module.exports = {
   findByUsername,
   findByEmail,
   findById,
+  findByIdWithPass,
   getStatus,
   createUser,
   listUsers,
   updateStatus,
   setRole,
+  updatePasswordHash,
+  updateEmail,
   saveRefreshToken,
   findRefreshToken,
   revokeRefreshToken,

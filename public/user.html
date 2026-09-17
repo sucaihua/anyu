@@ -21,8 +21,29 @@
         <div class="balance-card">
           <div class="balance-label">账户余额</div>
           <div class="balance-amount"><small>$</small><span id="balAmount">0.00</span></div>
-          <button class="btn btn-primary btn-sm" id="rechargeBtn" style="width:100%;margin-top:14px;justify-content:center;">+ 充值</button>
           <div class="balance-meta">充值后到账由后台确认，请保留转账凭证</div>
+          <button class="recharge-btn" id="rechargeBtn" type="button">💳 立即充值</button>
+        </div>
+        <div class="account-card">
+          <div class="account-head">
+            <div class="account-ava"><img src="/image/logo.jpg?v=1" alt="头像"></div>
+            <div class="account-head-meta">
+              <b class="account-uname" id="acctUser">-</b>
+              <span class="account-role" id="acctRole">普通用户</span>
+            </div>
+          </div>
+          <div class="account-body">
+            <div class="account-row">
+              <span class="account-row-label">邮箱</span>
+              <span class="account-row-val" id="acctEmail">-</span>
+              <button class="account-edit" id="editEmailBtn" type="button">修改</button>
+            </div>
+            <div class="account-row">
+              <span class="account-row-label">注册时间</span>
+              <span class="account-row-val" id="acctCreated">-</span>
+            </div>
+          </div>
+          <button class="btn btn-outline btn-sm" id="chgPwdBtn" style="width:100%;justify-content:center;">🔑 修改密码</button>
         </div>
         <nav class="user-menu">
           <button class="user-menu-item active" data-tab="records">📋 流水记录</button>
@@ -89,6 +110,70 @@
         const r = await API.get('/api/user/balance');
         if (r.code === 0) document.getElementById('balAmount').textContent = fmt.money(r.data.amount);
       }
+
+      // 账户信息 + 修改密码 / 邮箱
+      async function loadAccount() {
+        const r = await API.get('/api/auth/me');
+        if (r.code !== 0) return;
+        const u = r.data;
+        document.getElementById('acctUser').textContent = u.username || '-';
+        document.getElementById('acctRole').textContent = u.role === 1 ? '管理员' : '普通用户';
+        document.getElementById('acctEmail').textContent = u.email || '-';
+        document.getElementById('acctCreated').textContent = u.created_at ? fmt.date(u.created_at) : '-';
+      }
+      document.getElementById('editEmailBtn').addEventListener('click', () => {
+        const m = Modal.open({
+          title: '修改邮箱',
+          body: `
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div class="field"><label class="field-label">新邮箱</label><input class="input" id="newEmail" type="email" placeholder="请输入新的邮箱地址"></div>
+              <div class="field-hint">修改后用于接收充值到账等通知</div>
+            </div>`,
+          footer: `<button class="btn btn-ghost" data-act="cancel">取消</button><button class="btn btn-primary" data-act="ok">确认修改</button>`
+        });
+        m.el.querySelector('[data-act=cancel]').addEventListener('click', () => m.close());
+        m.el.querySelector('[data-act=ok]').addEventListener('click', async () => {
+          const email = m.el.querySelector('#newEmail').value.trim();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Toast.warn('请输入正确的邮箱地址');
+          const r = await API.put('/api/auth/email', { email });
+          if (r.code === 0) {
+            Toast.success('邮箱修改成功');
+            m.close();
+            loadAccount();
+          } else {
+            Toast.error(r.message);
+          }
+        });
+      });
+      document.getElementById('chgPwdBtn').addEventListener('click', () => {
+        const m = Modal.open({
+          title: '修改密码',
+          body: `
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div class="field"><label class="field-label">原密码</label><input class="input" type="password" id="pwdOld" placeholder="请输入原密码"></div>
+              <div class="field"><label class="field-label">新密码</label><input class="input" type="password" id="pwdNew" placeholder="8-32 位，含字母与数字"></div>
+              <div class="field"><label class="field-label">确认新密码</label><input class="input" type="password" id="pwdConfirm" placeholder="再次输入新密码"></div>
+            </div>`,
+          footer: `<button class="btn btn-ghost" data-act="cancel">取消</button><button class="btn btn-primary" data-act="ok">确认修改</button>`
+        });
+        m.el.querySelector('[data-act=cancel]').addEventListener('click', () => m.close());
+        m.el.querySelector('[data-act=ok]').addEventListener('click', async () => {
+          const oldPwd = m.el.querySelector('#pwdOld').value;
+          const newPwd = m.el.querySelector('#pwdNew').value;
+          const confirmPwd = m.el.querySelector('#pwdConfirm').value;
+          if (!oldPwd || !newPwd) return Toast.warn('请填写完整');
+          if (!/^(?=.*[A-Za-z])(?=.*\d)[\S]{8,32}$/.test(newPwd)) return Toast.warn('新密码需 8-32 位且含字母与数字');
+          if (newPwd !== confirmPwd) return Toast.warn('两次输入的新密码不一致');
+          const r = await API.put('/api/auth/password', { oldPassword: oldPwd, newPassword: newPwd });
+          if (r.code === 0) {
+            Toast.success('密码修改成功，请重新登录');
+            m.close();
+            setTimeout(() => { Auth.clearSession(); location.href = '/login'; }, 900);
+          } else {
+            Toast.error(r.message);
+          }
+        });
+      });
 
       const REC_TYPE_MAP = { 1: '充值', 2: '消费', 3: '退款' };
       async function loadRecords() {
@@ -289,6 +374,7 @@
       }
 
       loadBalance();
+      loadAccount();
       loadRecords();
     })();
   </script>

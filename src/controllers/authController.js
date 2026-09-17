@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const authService = require('../services/authService');
+const userModel = require('../models/userModel');
 const { success, fail, ERR } = require('../utils/response');
 
 // 注册参数 schema
@@ -67,10 +68,50 @@ async function logout(req, res, next) {
   }
 }
 
-// 当前用户信息
+// 当前用户信息（个人中心展示用户名/邮箱/注册时间等）
 async function me(req, res, next) {
   try {
-    return success(res, req.user, 'ok');
+    const user = await userModel.findById(req.user.id);
+    if (!user) return fail(res, ERR.NOT_FOUND, '用户不存在');
+    return success(res, user, 'ok');
+  } catch (e) {
+    next(e);
+  }
+}
+
+const changePasswordSchema = {
+  body: Joi.object({
+    oldPassword: Joi.string().min(1).max(64).required(),
+    newPassword: Joi.string()
+      .pattern(/^(?=.*[A-Za-z])(?=.*\d)[\S]{8,32}$/)
+      .required()
+      .messages({
+        'string.pattern.base': '新密码 8-32 位，需同时包含字母与数字'
+      })
+  })
+};
+
+async function changePassword(req, res, next) {
+  try {
+    await authService.changePassword(req.user.id, req.body);
+    return success(res, { ok: true }, '密码修改成功，请重新登录');
+  } catch (e) {
+    next(e);
+  }
+}
+
+const changeEmailSchema = {
+  body: Joi.object({
+    email: Joi.string().email().max(120).required().messages({
+      'string.email': '邮箱格式不正确'
+    })
+  })
+};
+
+async function changeEmail(req, res, next) {
+  try {
+    await authService.changeEmail(req.user.id, req.body);
+    return success(res, { ok: true }, '邮箱修改成功');
   } catch (e) {
     next(e);
   }
@@ -84,5 +125,9 @@ module.exports = {
   refresh,
   refreshSchema,
   logout,
-  me
+  me,
+  changePassword,
+  changePasswordSchema,
+  changeEmail,
+  changeEmailSchema
 };
