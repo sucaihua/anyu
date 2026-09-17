@@ -205,8 +205,8 @@ function renderNav(active) {
     <nav class="nav">
       <div class="nav-inner">
         <a href="/" class="brand">
-          <span class="brand-logo">A</span>
-          <span>Anyu Shop</span>
+          <span class="brand-logo">Z</span>
+          <span>ZiyuanClub</span>
         </a>
         <button class="nav-toggle" id="navToggle" aria-label="菜单"><span></span></button>
         <div class="nav-links" id="navLinks">

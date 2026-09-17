@@ -18,7 +18,7 @@ async function send(cfg, { to, subject, html }) {
     secure: Number(cfg.secure) === 1,
     auth: { user: cfg.mail_user, pass: cfg.mail_pass }
   });
-  const from = `"${cfg.from_name || 'Anyu'}" <${cfg.from_email || cfg.mail_user}>`;
+  const from = `"${cfg.from_name || 'ZiyuanClub'}" <${cfg.from_email || cfg.mail_user}>`;
   const info = await transport.sendMail({ from, to, subject, html });
   return { sent: true, messageId: info.messageId };
 }

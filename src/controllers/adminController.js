@@ -107,7 +107,7 @@ async function updateMailConfig(req, res, next) {
       secure: d.secure,
       mailUser: d.mailUser || '',
       mailPass: d.mailPass || '',
-      fromName: d.fromName || 'Anyu',
+      fromName: d.fromName || 'ZiyuanClub',
       fromEmail: d.fromEmail || '',
       notifyUser: d.notifyUser,
       adminTo: d.adminTo || ''
