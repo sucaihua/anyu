@@ -1,0 +1,14 @@
+[Unit]
+Description=Anyu Gitee Webhook
+After=network.target
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=/www/wwwroot/anyu/.env
+ExecStart=/www/server/nvm/versions/node/v24.14.1/bin/node /www/wwwroot/anyu/deploy/webhook.js
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

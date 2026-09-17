@@ -1,0 +1,20 @@
+[Unit]
+Description=Anyu Shop - Node.js API
+After=network.target mysqld.service redis.service
+
+[Service]
+Type=simple
+# 生产环境建议创建非 root 运行用户：useradd -r -s /sbin/nologin anyu
+User=root
+WorkingDirectory=/opt/anyu
+EnvironmentFile=/opt/anyu/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /opt/anyu/src/app.js
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
