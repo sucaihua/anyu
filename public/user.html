@@ -140,7 +140,7 @@
                   ${list.map((o) => `
                     <tr>
                       <td data-label="订单号" style="font-family:monospace;font-size:12px;">${escapeHtml(o.order_no)}</td>
-                      <td data-label="商品">${escapeHtml(o.product_name)}</td>
+                      <td data-label="商品">${escapeHtml(o.product_name)}${o.spec_desc ? `<div style="font-size:12px;color:var(--c-muted);margin-top:2px;">${escapeHtml(o.spec_desc)}</div>` : ''}</td>
                       <td data-label="金额" style="font-weight:600;">¥${fmt.money(o.amount)}</td>
                       <td data-label="状态"><span class="badge ${STATUS[o.status][1]}">${STATUS[o.status][0]}</span></td>
                       <td data-label="下单时间">${fmt.date(o.paid_at || o.created_at)}</td>

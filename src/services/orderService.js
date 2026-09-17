@@ -13,7 +13,7 @@ const logger = require('../utils/logger');
 
 // 下单核心流程：单事务完成库存行锁 + 扣余额原子 + 扣库存原子 + 写订单 + 写流水
 // 幂等：用 Redis 短期幂等键防同一用户短时间内重复点击
-async function placeOrder({ userId, productId, idempotencyKey }) {
+async function placeOrder({ userId, productId, skuId, idempotencyKey }) {
   if (!productId) throw new AppError(ERR.PARAMS, '缺少商品 id');
 
   // 幂等：10 秒内同一 key 直接拒绝
@@ -35,13 +35,57 @@ async function placeOrder({ userId, productId, idempotencyKey }) {
       await conn.rollback();
       throw new AppError(ERR.NOT_FOUND, '商品不存在或已下架');
     }
-    if (product.stock <= 0) {
-      await conn.rollback();
-      throw new AppError(ERR.STOCK_NOT_ENOUGH, '库存不足');
+
+    // 2. 行锁查该商品的启用 SKU 列表，判断是否为规格商品
+    const [skuRows] = await conn.execute(
+      'SELECT id, spec_json, spec_desc, price, stock, status FROM product_skus WHERE product_id = ? AND status = 1 FOR UPDATE',
+      [productId]
+    );
+    const hasSku = skuRows.length > 0;
+
+    let amount;
+    let skuIdOut = null;
+    let specDesc = null;
+
+    if (hasSku) {
+      // 规格商品：必须选择 SKU
+      if (!skuId) {
+        await conn.rollback();
+        throw new AppError(ERR.PARAMS, '请选择商品规格');
+      }
+      const sku = skuRows.find((s) => Number(s.id) === Number(skuId));
+      if (!sku) {
+        await conn.rollback();
+        throw new AppError(ERR.PARAMS, '规格不存在或已停用');
+      }
+      if (sku.stock <= 0) {
+        await conn.rollback();
+        throw new AppError(ERR.STOCK_NOT_ENOUGH, '该规格库存不足');
+      }
+      // 原子扣 SKU 库存
+      const skuAffected = await productModel.decreaseSkuStock(conn, sku.id);
+      if (skuAffected !== 1) {
+        await conn.rollback();
+        throw new AppError(ERR.STOCK_NOT_ENOUGH, '该规格库存不足');
+      }
+      amount = Number(sku.price);
+      skuIdOut = sku.id;
+      specDesc = sku.spec_desc || '';
+    } else {
+      // 无规格商品：走主库存
+      if (product.stock <= 0) {
+        await conn.rollback();
+        throw new AppError(ERR.STOCK_NOT_ENOUGH, '库存不足');
+      }
+      const stockAffected = await productModel.decreaseStock(conn, productId);
+      if (stockAffected !== 1) {
+        await conn.rollback();
+        throw new AppError(ERR.STOCK_NOT_ENOUGH, '库存不足');
+      }
+      amount = Number(product.price);
     }
 
-    // 2. 原子扣余额（amount >= ? 兜底）
-    const amount = Number(product.price);
+    // 3. 原子扣余额（amount >= ? 兜底）
     const affected = await balanceModel.decreaseBalance(conn, userId, amount);
     if (affected !== 1) {
       await conn.rollback();
@@ -50,22 +94,18 @@ async function placeOrder({ userId, productId, idempotencyKey }) {
     // 扣款成功后让余额缓存立即失效，避免下单后余额显示不更新
     await cache.del(`balance:${userId}`);
 
-    // 3. 原子扣库存（WHERE stock > 0）
-    const stockAffected = await productModel.decreaseStock(conn, productId);
-    if (stockAffected !== 1) {
-      await conn.rollback();
-      throw new AppError(ERR.STOCK_NOT_ENOUGH, '库存不足');
-    }
-
-    // 4. 写订单（含商品快照）
+    // 4. 写订单（含商品快照 + 规格快照）
     const orderNo = generateOrderNo(userId);
+    const productNameFull = specDesc ? `${product.name}（${specDesc}）` : product.name;
     const orderId = await orderModel.createOrder(conn, {
       orderNo,
       userId,
       productId,
       productName: product.name,
       amount,
-      status: 1 // 已支付
+      status: 1, // 已支付
+      skuId: skuIdOut,
+      specDesc
     });
 
     // 5. 写余额流水（消费）
@@ -81,7 +121,7 @@ async function placeOrder({ userId, productId, idempotencyKey }) {
       amount,
       balanceAfter,
       refOrderId: orderId,
-      remark: `下单：${product.name}`
+      remark: `下单：${productNameFull}`
     });
 
     await conn.commit();
@@ -90,13 +130,13 @@ async function placeOrder({ userId, productId, idempotencyKey }) {
     await cache.del('products:list');
     await cache.del(`product:${productId}`);
 
-    const result = { orderId, orderNo, amount, productName: product.name };
+    const result = { orderId, orderNo, amount, productName: productNameFull };
 
     // 下单后邮箱提醒（fire-and-forget：邮件失败不影响下单结果）
     userModel.findById(userId).then((u) => {
       if (u) {
         mailConfigService
-          .sendOrderReminder({ to: u.email, orderNo, productName: product.name, amount })
+          .sendOrderReminder({ to: u.email, orderNo, productName: productNameFull, amount })
           .catch(() => {});
       }
     }).catch(() => {});

@@ -118,6 +118,34 @@ async function main() {
     }
   }
 
+  // 7. product_skus 商品规格 SKU 表
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS \`product_skus\` (
+      \`id\` BIGINT NOT NULL AUTO_INCREMENT,
+      \`product_id\` INT NOT NULL,
+      \`spec_json\` VARCHAR(500) NOT NULL DEFAULT '{}' COMMENT '规格键值对 JSON，如 {"颜色":"红","尺码":"S"}',
+      \`spec_desc\` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '规格展示文本，如 颜色:红 尺码:S',
+      \`price\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`stock\` INT NOT NULL DEFAULT 0,
+      \`status\` TINYINT NOT NULL DEFAULT 1 COMMENT '1 启用 / 0 停用',
+      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      KEY \`idx_product\` (\`product_id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品规格 SKU'
+  `);
+
+  // 8. orders 表增加 sku_id / spec_desc 快照字段（幂等）
+  for (const col of ['sku_id', 'spec_desc']) {
+    const oc = await conn.query(`SHOW COLUMNS FROM \`orders\` LIKE '${col}'`);
+    if (!oc[0].length) {
+      const colDef = col === 'sku_id'
+        ? '`sku_id` BIGINT NULL COMMENT \'订单对应 SKU id（无规格商品为空）\' AFTER `product_name`'
+        : '`spec_desc` VARCHAR(255) NULL COMMENT \'规格快照文本\' AFTER `sku_id`';
+      await conn.query(`ALTER TABLE \`orders\` ADD COLUMN ${colDef}`);
+    }
+  }
+
   await conn.end();
   console.log('[migrate] 完成，已有数据未受影响');
 }

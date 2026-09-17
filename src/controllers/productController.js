@@ -41,7 +41,15 @@ const productSchema = {
     cover: Joi.string().max(255).allow('', null),
     description: Joi.string().allow('', null),
     categoryId: Joi.number().integer().allow(null),
-    status: Joi.number().integer().valid(0, 1).default(1)
+    status: Joi.number().integer().valid(0, 1).default(1),
+    // 可选：商品规格 SKU 列表。未传则不动原有 SKU；传空数组表示清除规格。
+    skus: Joi.array().items(Joi.object({
+      specJson: Joi.object().unknown(true).default({}),
+      specDesc: Joi.string().max(255).allow('', null),
+      price: Joi.number().min(0).max(99999999.99).required(),
+      stock: Joi.number().integer().min(0).max(100000000).required(),
+      status: Joi.number().integer().valid(0, 1).default(1)
+    })).max(200)
   })
 };
 
