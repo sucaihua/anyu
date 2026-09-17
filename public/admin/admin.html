@@ -46,6 +46,9 @@
       <button class="admin-side-item" data-tab="popup">
         <span class="admin-side-icon">🔔</span> 充值提示配置
       </button>
+      <button class="admin-side-item" data-tab="homepopup">
+        <span class="admin-side-icon">🎉</span> 首页弹窗配置
+      </button>
       <button class="admin-side-item" data-tab="mail">
         <span class="admin-side-icon">📧</span> 邮件提醒配置
       </button>
@@ -291,6 +294,51 @@
             <div style="display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid var(--c-border);padding-top:16px;">
               <button class="btn btn-primary" id="mailSave">💾 保存配置</button>
               <button class="btn btn-outline" id="mailTest">📨 发送测试邮件</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 首页弹窗配置 -->
+      <section id="homepopupView" style="display:none;">
+        <div class="admin-bar">
+          <button class="admin-mobile-toggle">☰</button>
+          <div class="admin-crumb"><span>控制台</span><span class="admin-crumb-sep">/</span><span>设置</span><span class="admin-crumb-sep">/</span><b>首页弹窗配置</b></div>
+          <div class="spacer"></div>
+          <button class="btn btn-outline btn-sm" id="hpRefresh">🔄 刷新</button>
+        </div>
+        <div class="admin-panel">
+          <div class="admin-panel-head"><div><div class="admin-panel-title">首页弹窗</div><div class="admin-panel-sub">配置访问首页时弹出的公告/活动窗口，支持图片与富文本内容</div></div></div>
+          <div class="admin-panel-body">
+            <form style="max-width:640px;">
+              <div class="field"><label class="field-label">是否启用</label>
+                <label class="switch"><input type="checkbox" id="hpEnabled"><span class="switch-slider"></span></label>
+                <span style="margin-left:12px;font-size:13px;color:var(--c-muted);" id="hpEnabledText">已关闭</span></div>
+              <div class="field"><label class="field-label">标题</label>
+                <input class="input" id="hpTitle" placeholder="如：新用户注册送余额"></div>
+              <div class="field"><label class="field-label">顶部图片 URL（可选）</label>
+                <input class="input" id="hpImageUrl" placeholder="https://... 支持外链图片">
+                <div class="field-hint">图片将展示在弹窗内容上方，可留空</div></div>
+              <div class="field"><label class="field-label">弹窗内容（支持富文本 HTML）</label>
+                <textarea class="textarea" id="hpContent" placeholder="支持 HTML，如：&lt;p&gt;新用户注册即送 &lt;b style=&quot;color:#f59e0b&quot;&gt;5 元&lt;/b&gt; 余额&lt;/p&gt;&lt;img src=&quot;...&quot;&gt;" style="min-height:120px;"></textarea>
+                <div class="field-hint">可直接粘贴 HTML，包含 &lt;img&gt;、&lt;b&gt;、&lt;p&gt;、&lt;a&gt; 等标签；图片也可用上方图片 URL 字段</div></div>
+              <div class="field"><label class="field-label">弹出策略</label>
+                <select class="select" id="hpTriggerMode" style="width:auto;">
+                  <option value="first">仅首次进入弹出</option>
+                  <option value="refresh">每次刷新页面都弹出</option>
+                  <option value="timer">每隔一段时间弹出</option>
+                </select></div>
+              <div class="field" id="hpIntervalWrap" style="display:none;">
+                <label class="field-label">间隔时间（分钟）</label>
+                <input class="input" id="hpInterval" type="number" min="1" max="1440" value="30" style="width:140px;">
+                <div class="field-hint">同一浏览器离开该时间后再访问将再次弹出</div></div>
+              <button type="button" class="btn btn-primary" id="hpSave">💾 保存配置</button>
+            </form>
+            <div class="popup-preview">
+              <div class="popup-preview-title" id="hpPreviewTitle">公告</div>
+              <div id="hpPreviewImage"></div>
+              <div class="popup-preview-content" id="hpPreviewContent">欢迎光临！</div>
+              <div class="popup-preview-note">↑ 用户端实际展示效果预览</div>
             </div>
           </div>
         </div>

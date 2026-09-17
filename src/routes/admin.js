@@ -3,6 +3,7 @@ const router = express.Router();
 const ctrl = require('../controllers/adminController');
 const catCtrl = require('../controllers/categoryController');
 const rcCtrl = require('../controllers/rechargeController');
+const hpCtrl = require('../controllers/homePopupController');
 const { validate } = require('../middlewares/validator');
 const { authRequired, adminRequired } = require('../middlewares/auth');
 
@@ -28,5 +29,9 @@ router.put('/recharges/:id/reject', rcCtrl.reject);
 router.get('/mail-config', ctrl.getMailConfig);
 router.put('/mail-config', validate(ctrl.updateMailConfigSchema), ctrl.updateMailConfig);
 router.post('/mail-config/test', validate(ctrl.testMailSchema), ctrl.testMailConfig);
+
+// 首页弹窗配置
+router.get('/home-popup', hpCtrl.getAdmin);
+router.put('/home-popup', validate(hpCtrl.updateSchema), hpCtrl.update);
 
 module.exports = router;

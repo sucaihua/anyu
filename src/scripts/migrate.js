@@ -132,6 +132,23 @@ async function main() {
       ADD COLUMN \`spec_desc\` VARCHAR(255) NULL COMMENT '用户所选规格快照文本' AFTER \`product_name\``);
   }
 
+  // 9. home_popup_config 首页弹窗配置表
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS \`home_popup_config\` (
+      \`id\` INT NOT NULL DEFAULT 1,
+      \`enabled\` TINYINT NOT NULL DEFAULT 0 COMMENT '是否启用首页弹窗',
+      \`title\` VARCHAR(120) NULL,
+      \`content\` TEXT NULL COMMENT '弹窗内容（支持 HTML 富文本）',
+      \`image_url\` VARCHAR(500) NULL COMMENT '弹窗顶部图片地址',
+      \`trigger_mode\` VARCHAR(20) NOT NULL DEFAULT 'first' COMMENT '弹出策略 first=首次进入 refresh=每次刷新 timer=隔一段时间',
+      \`interval_minutes\` INT NOT NULL DEFAULT 30 COMMENT 'timer 策略下的间隔分钟数',
+      \`updated_by\` BIGINT NULL,
+      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='首页弹窗配置'
+  `);
+  await conn.query(`INSERT IGNORE INTO \`home_popup_config\` (\`id\`, \`enabled\`, \`title\`, \`content\`, \`trigger_mode\`) VALUES (1, 0, '公告', '欢迎光临！', 'first')`);
+
   await conn.end();
   console.log('[migrate] 完成，已有数据未受影响');
 }

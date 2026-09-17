@@ -26,6 +26,23 @@
 }
 .hero h1 { font-size: 30px; margin: 0 0 8px; position: relative; }
 .hero p { margin: 0; opacity: .9; position: relative; max-width: 480px; }
+.hero-tip {
+  position: absolute;
+  top: 14px; right: 16px;
+  z-index: 2;
+  background: rgba(255, 255, 255, .16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .38);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: .2s;
+}
+.hero-tip:hover { background: rgba(255, 255, 255, .3); }
 .hero .balance-chip {
   margin-top: var(--space-4);
   display: inline-flex;

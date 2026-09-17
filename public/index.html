@@ -12,6 +12,7 @@
   <div id="nav-host"></div>
   <main class="page">
     <section class="hero" id="hero">
+      <button class="hero-tip" id="heroTipBtn" type="button" style="display:none;">TIP</button>
       <h1>畅享预充值购物</h1>
       <p>预存余额，一键下单。后台托管，安全可靠。下单即时扣款，无需等待在线支付。</p>
       <a class="balance-chip" id="balanceChip" href="/user" style="display:none;">
@@ -85,7 +86,7 @@
         try {
           const bal = await API.get('/api/user/balance');
           if (bal.code === 0) {
-            chip.innerHTML = `当前余额:<b id="heroBalance">$${fmt.money(bal.data.amount)}</b>`;
+            chip.innerHTML = `当前余额<b id="heroBalance">$${fmt.money(bal.data.amount)}</b>`;
           } else {
             chip.style.display = 'none';
           }
@@ -228,6 +229,7 @@
         content: `
           <div style="display:flex;flex-direction:column;gap:3px;">
             <div><b>商品：</b>${escapeHtml(showName)}</div>
+            <div><b>描述：</b>${escapeHtml(p.description || '暂无描述')}</div>
             <div><b>单价：</b>$${fmt.money(payAmount)}</div>
             <div><b>实付：</b><span style="color:var(--c-primary);font-weight:700;font-size:18px;">$${fmt.money(payAmount)}</span></div>
             <div style="color:var(--c-muted);font-size:13px;">下单即时从余额扣除</div>
@@ -258,7 +260,52 @@
       }
     }
 
+    // ===== 首页弹窗 =====
+    let hpCfg = null;
+    function showHomePopup() {
+      if (!hpCfg) return;
+      const img = hpCfg.imageUrl
+        ? `<img src="${escapeHtml(hpCfg.imageUrl)}" alt="popup" style="width:100%;max-height:240px;object-fit:cover;display:block;border-radius:12px 12px 0 0;">`
+        : '';
+      const m = Modal.open({
+        title: escapeHtml(hpCfg.title || '公告'),
+        body: `${img}<div class="hp-rich" style="font-size:14px;line-height:1.7;color:var(--c-text);max-height:44vh;overflow-y:auto;">${hpCfg.content || ''}</div>`,
+        footer: `<button class="btn btn-primary" data-act="ok">我知道了</button>`
+      });
+      m.el.querySelector('[data-act=ok]').addEventListener('click', () => m.close());
+    }
+    async function initHomePopup() {
+      const tipBtn = document.getElementById('heroTipBtn');
+      try {
+        const r = await API.get('/api/home-popup');
+        if (r.code === 0) hpCfg = r.data;
+      } catch (e) { hpCfg = null; }
+      if (!hpCfg || Number(hpCfg.enabled) !== 1) {
+        // 后台未启用弹窗：隐藏 TIP 按钮
+        if (tipBtn) tipBtn.style.display = 'none';
+        return;
+      }
+      tipBtn.addEventListener('click', showHomePopup);
+      // 显示 TIP 按钮
+      if (tipBtn) tipBtn.style.display = 'block';
+      // 检查是否已弹出过
+      if (localStorage.getItem('hp_shown')) return;
+      const mode = hpCfg.triggerMode || 'first';
+      if (mode === 'first') {
+        if (localStorage.getItem('hp_shown')) return;
+        localStorage.setItem('hp_shown', '1');
+      } else if (mode === 'timer') {
+        const interval = (Number(hpCfg.intervalMinutes) || 30) * 60000;
+        const last = Number(localStorage.getItem('hp_last') || 0);
+        if (Date.now() - last < interval) return;
+        localStorage.setItem('hp_last', String(Date.now()));
+      }
+      // refresh 模式或满足条件的 first/timer -> 弹出
+      showHomePopup();
+    }
+
     loadAll();
+    initHomePopup();
   </script>
 </body>
 </html>

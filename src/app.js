@@ -12,6 +12,7 @@ const productRoutes = require('./routes/product');
 const orderRoutes = require('./routes/order');
 const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
+const homePopupRoutes = require('./routes/homePopup');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/home-popup', homePopupRoutes);
 
 // 健康检查
 app.get('/health', (req, res) => res.json({ code: 0, message: 'ok', data: { status: 'up' } }));

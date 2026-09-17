@@ -202,7 +202,7 @@ async function requireAdmin() {
       document.querySelectorAll('.admin-side-item').forEach((x) => x.classList.remove('active'));
       b.classList.add('active');
       const tab = b.dataset.tab;
-      ['dashboard', 'users', 'products', 'categories', 'recharges', 'orders', 'popup', 'mail'].forEach((t) => {
+      ['dashboard', 'users', 'products', 'categories', 'recharges', 'orders', 'popup', 'homepopup', 'mail'].forEach((t) => {
         document.getElementById(t + 'View').style.display = tab === t ? '' : 'none';
       });
       if (window.innerWidth <= 960) closeSide();
@@ -213,6 +213,7 @@ async function requireAdmin() {
       if (tab === 'recharges') loadRecharges();
       if (tab === 'orders') loadOrders();
       if (tab === 'popup') loadPopup();
+      if (tab === 'homepopup') loadHomePopup();
       if (tab === 'mail') loadMail();
     });
   });
@@ -774,6 +775,53 @@ async function requireAdmin() {
     };
     if (!body.title || !body.content) return Toast.error('标题和内容不能为空');
     const r = await Auth.put('/api/orders/admin/popup', body);
+    if (r.code === 0) Toast.success('保存成功'); else Toast.error(r.message);
+  });
+
+  // ============ 首页弹窗配置 ============
+  async function loadHomePopup() {
+    const r = await Auth.get('/api/admin/home-popup');
+    if (r.code !== 0) return Toast.error(r.message);
+    const c = r.data || {};
+    document.getElementById('hpEnabled').checked = c.enabled === 1;
+    document.getElementById('hpTitle').value = c.title || '';
+    document.getElementById('hpImageUrl').value = c.imageUrl || '';
+    document.getElementById('hpContent').value = c.content || '';
+    document.getElementById('hpTriggerMode').value = c.triggerMode || 'first';
+    document.getElementById('hpInterval').value = c.intervalMinutes || 30;
+    updateHpPreview();
+  }
+  function updateHpPreview() {
+    const en = document.getElementById('hpEnabled').checked;
+    const title = document.getElementById('hpTitle').value || '公告';
+    const content = document.getElementById('hpContent').value || '欢迎光临！';
+    const img = document.getElementById('hpImageUrl').value.trim();
+    document.getElementById('hpEnabledText').textContent = en ? '已开启' : '已关闭';
+    document.getElementById('hpPreviewTitle').textContent = title;
+    const imgHost = document.getElementById('hpPreviewImage');
+    imgHost.innerHTML = img ? `<img src="${escapeHtml(img)}" style="max-width:100%;max-height:180px;border-radius:10px;display:block;margin-bottom:10px;object-fit:cover;">` : '';
+    document.getElementById('hpPreviewContent').innerHTML = content;
+  }
+  function hpUpdateIntervalWrap() {
+    document.getElementById('hpIntervalWrap').style.display =
+      document.getElementById('hpTriggerMode').value === 'timer' ? '' : 'none';
+  }
+  document.getElementById('hpEnabled').addEventListener('change', updateHpPreview);
+  document.getElementById('hpTitle').addEventListener('input', updateHpPreview);
+  document.getElementById('hpImageUrl').addEventListener('input', updateHpPreview);
+  document.getElementById('hpContent').addEventListener('input', updateHpPreview);
+  document.getElementById('hpTriggerMode').addEventListener('change', hpUpdateIntervalWrap);
+  document.getElementById('hpRefresh').addEventListener('click', loadHomePopup);
+  document.getElementById('hpSave').addEventListener('click', async () => {
+    const body = {
+      enabled: document.getElementById('hpEnabled').checked ? 1 : 0,
+      title: document.getElementById('hpTitle').value.trim(),
+      imageUrl: document.getElementById('hpImageUrl').value.trim(),
+      content: document.getElementById('hpContent').value,
+      triggerMode: document.getElementById('hpTriggerMode').value,
+      intervalMinutes: Number(document.getElementById('hpInterval').value) || 30
+    };
+    const r = await Auth.put('/api/admin/home-popup', body);
     if (r.code === 0) Toast.success('保存成功'); else Toast.error(r.message);
   });
 
