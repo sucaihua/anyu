@@ -88,6 +88,30 @@ async function main() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户充值申请单'
   `);
 
+  // 6. order_popup_config 增加银行卡收款字段（幂等）
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS \`order_popup_config\` (
+      \`id\` INT NOT NULL DEFAULT 1,
+      \`enabled\` TINYINT NOT NULL DEFAULT 0,
+      \`title\` VARCHAR(120) NULL,
+      \`content\` TEXT NULL,
+      \`account_name\` VARCHAR(120) NULL,
+      \`bank_card\` VARCHAR(120) NULL,
+      \`bank_name\` VARCHAR(120) NULL,
+      \`updated_by\` BIGINT NULL,
+      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='下单/充值弹窗配置（含银行卡收款信息）'
+  `);
+  await conn.query('INSERT IGNORE INTO `order_popup_config` (`id`, `enabled`, `title`, `content`) VALUES (1, 0, \'充值提示\', \'请按以下银行卡信息转账，转账后提交申请等待后台确认到账。\')');
+  for (const col of ['account_name', 'bank_card', 'bank_name']) {
+    const c = await conn.query(`SHOW COLUMNS FROM \`order_popup_config\` LIKE '${col}'`);
+    if (!c[0].length) {
+      const colType = col === 'bank_card' ? 'VARCHAR(120) NULL' : 'VARCHAR(120) NULL';
+      await conn.query(`ALTER TABLE \`order_popup_config\` ADD COLUMN \`${col}\` ${colType} AFTER \`content\``);
+    }
+  }
+
   await conn.end();
   console.log('[migrate] 完成，已有数据未受影响');
 }

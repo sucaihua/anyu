@@ -141,13 +141,16 @@ CREATE TABLE `order_popup_config` (
   `enabled` TINYINT NOT NULL DEFAULT 0,
   `title` VARCHAR(120) NULL,
   `content` TEXT NULL,
+  `account_name` VARCHAR(120) NULL,
+  `bank_card` VARCHAR(120) NULL,
+  `bank_name` VARCHAR(120) NULL,
   `updated_by` BIGINT NULL,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='下单弹窗配置';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='下单/充值弹窗配置（含银行卡收款信息）';
 
 INSERT INTO `order_popup_config` (`id`, `enabled`, `title`, `content`)
-VALUES (1, 0, '下单提示', '请确认订单信息无误后再下单。');
+VALUES (1, 0, '充值提示', '请按以下银行卡信息转账，转账后提交申请等待后台确认到账。');
 
 -- ----------------------------
 -- mail_config 邮件通知配置（单条记录，用于下单后邮箱提醒）

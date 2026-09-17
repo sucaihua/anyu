@@ -681,6 +681,18 @@ async function requireAdmin() {
   }
 
   // ============ 弹窗配置 ============
+  function bankPreviewHtml() {
+    const name = document.getElementById('popAccountName').value.trim();
+    const card = document.getElementById('popBankCard').value.trim();
+    const bank = document.getElementById('popBankName').value.trim();
+    if (!name && !card && !bank) return '';
+    return `
+      <div class="preview-bank">
+        ${name ? `<div class="preview-bank-row"><span>收款户名</span><b>${escapeHtml(name)}</b></div>` : ''}
+        ${card ? `<div class="preview-bank-row"><span>银行卡号</span><b>${escapeHtml(card)}</b><button type="button" class="copy-btn" data-copy="${escapeHtml(card)}">复制</button></div>` : ''}
+        ${bank ? `<div class="preview-bank-row"><span>开户行</span><b>${escapeHtml(bank)}</b></div>` : ''}
+      </div>`;
+  }
   async function loadPopup() {
     const r = await Auth.get('/api/orders/popup');
     if (r.code !== 0) return Toast.error(r.message);
@@ -688,6 +700,9 @@ async function requireAdmin() {
     document.getElementById('popEnabled').checked = c.enabled === 1;
     document.getElementById('popTitle').value = c.title || '';
     document.getElementById('popContent').value = c.content || '';
+    document.getElementById('popAccountName').value = c.account_name || '';
+    document.getElementById('popBankCard').value = c.bank_card || '';
+    document.getElementById('popBankName').value = c.bank_name || '';
     updatePreview();
   }
   function updatePreview() {
@@ -697,15 +712,35 @@ async function requireAdmin() {
     document.getElementById('popEnabledText').textContent = en ? '已开启' : '已关闭';
     document.getElementById('previewTitle').textContent = title;
     document.getElementById('previewContent').textContent = content;
+    document.getElementById('previewBank').innerHTML = bankPreviewHtml();
+    // 绑定预览区复制
+    document.querySelectorAll('.copy-btn[data-copy]').forEach((b) => {
+      b.addEventListener('click', () => { copyText(b.getAttribute('data-copy')); Toast.success('已复制'); });
+    });
+  }
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+    }
   }
   document.getElementById('popEnabled').addEventListener('change', updatePreview);
   document.getElementById('popTitle').addEventListener('input', updatePreview);
   document.getElementById('popContent').addEventListener('input', updatePreview);
+  document.getElementById('popAccountName').addEventListener('input', updatePreview);
+  document.getElementById('popBankCard').addEventListener('input', updatePreview);
+  document.getElementById('popBankName').addEventListener('input', updatePreview);
   document.getElementById('popSave').addEventListener('click', async () => {
     const body = {
       enabled: document.getElementById('popEnabled').checked ? 1 : 0,
       title: document.getElementById('popTitle').value.trim(),
-      content: document.getElementById('popContent').value.trim()
+      content: document.getElementById('popContent').value.trim(),
+      accountName: document.getElementById('popAccountName').value.trim(),
+      bankCard: document.getElementById('popBankCard').value.trim(),
+      bankName: document.getElementById('popBankName').value.trim()
     };
     if (!body.title || !body.content) return Toast.error('标题和内容不能为空');
     const r = await Auth.put('/api/orders/admin/popup', body);

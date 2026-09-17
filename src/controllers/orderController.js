@@ -74,7 +74,10 @@ const popupSchema = {
   body: Joi.object({
     enabled: Joi.number().integer().valid(0, 1).required(),
     title: Joi.string().max(120).allow('', null).required(),
-    content: Joi.string().allow('', null).required()
+    content: Joi.string().allow('', null).required(),
+    accountName: Joi.string().max(120).allow('', null).required(),
+    bankCard: Joi.string().max(120).allow('', null).required(),
+    bankName: Joi.string().max(120).allow('', null).required()
   })
 };
 

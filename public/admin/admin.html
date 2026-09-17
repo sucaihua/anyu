@@ -223,11 +223,21 @@
               <div class="field"><label class="field-label">内容 <span style="color:var(--c-danger);">*</span></label>
                 <textarea class="textarea" id="popContent" placeholder="提示内容..."></textarea>
                 <div class="field-hint">支持纯文本，将展示在用户充值「付款」提交时的弹窗中</div></div>
+              <div class="field" style="border-top:1px solid var(--c-border);padding-top:14px;margin-top:6px;">
+                <label class="field-label">银行卡收款信息（展示在弹窗中）</label>
+                <div class="field"><label class="field-label">收款户名</label>
+                  <input class="input" id="popAccountName" placeholder="如：张某某"></div>
+                <div class="field"><label class="field-label">银行卡号</label>
+                  <input class="input" id="popBankCard" placeholder="如：6222 0212 3456 7890"></div>
+                <div class="field"><label class="field-label">开户行</label>
+                  <input class="input" id="popBankName" placeholder="如：招商银行北京分行"></div>
+              </div>
               <button type="button" class="btn btn-primary" id="popSave">💾 保存配置</button>
             </form>
             <div class="popup-preview">
               <div class="popup-preview-title" id="previewTitle">充值提示</div>
               <div class="popup-preview-content" id="previewContent">请确认转账信息无误后再确认付款。</div>
+              <div id="previewBank"></div>
               <div class="popup-preview-note">↑ 用户端实际展示效果预览</div>
             </div>
           </div>

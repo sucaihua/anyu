@@ -182,19 +182,49 @@
       document.getElementById('ordRefresh').addEventListener('click', loadOrders);
       document.getElementById('rcRefresh').addEventListener('click', loadRecharges);
 
-      // 充值：付款提交（先弹充值提示弹窗，后台配置）
+      // 充值：付款提交（先弹充值提示弹窗，后台配置，含银行卡信息）
+      function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); ta.remove();
+        }
+      }
+      function bankCardBody(d) {
+        const row = (label, val, copy) => val ? `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px;">
+            <span style="width:60px;flex-shrink:0;color:var(--c-muted);">${label}</span>
+            <b style="font-weight:600;word-break:break-all;">${escapeHtml(val)}</b>
+            ${copy ? `<button type="button" class="bank-copy" data-copy="${escapeHtml(val)}" style="margin-left:auto;flex-shrink:0;border:1px solid var(--c-border);background:transparent;color:var(--c-primary);border-radius:6px;padding:2px 10px;font-size:12px;cursor:pointer;">复制</button>` : ''}
+          </div>` : '';
+        const box = [
+          row('收款户名', d.account_name),
+          row('银行卡号', d.bank_card, true),
+          row('开户行', d.bank_name)
+        ].filter(Boolean).join('');
+        if (!box) return '';
+        return `<div style="margin-top:12px;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;background:var(--c-card);">${box}</div>`;
+      }
       async function doRecharge() {
         const amount = Number(document.getElementById('rcAmount').value);
         const remark = document.getElementById('rcRemark').value.trim();
         if (!(amount > 0)) return Toast.error('请输入正确的充值金额');
-        // 读取后台配置的充值提示弹窗（如有 enabled 则先弹出）
+        // 读取后台配置的充值提示弹窗（如有 enabled 则先弹出），弹窗内展示银行卡信息 + 备注
         try {
           const pp = await API.get('/api/orders/popup');
           if (pp.code === 0 && pp.data && pp.data.enabled) {
+            const d = pp.data;
+            const content = (escapeHtml(d.content || '') || '请按以下银行卡信息转账，转账后提交申请等待后台确认到账。')
+              + bankCardBody(d);
             const ok = await Modal.confirm({
-              title: pp.data.title || '充值提示',
-              content: escapeHtml(pp.data.content || '请确认转账信息后再提交充值。'),
+              title: d.title || '充值提示',
+              content,
               okText: '我已付款'
+            });
+            // 绑定弹窗内一键复制
+            document.querySelectorAll('.bank-copy[data-copy]').forEach((b) => {
+              b.addEventListener('click', () => { copyText(b.getAttribute('data-copy')); });
             });
             if (!ok) return;
           }

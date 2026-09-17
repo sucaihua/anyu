@@ -171,13 +171,21 @@ async function refund(orderId, operatorId) {
   }
 }
 
-// 下单弹窗提示配置（缓存）
+// 充值/下单弹窗提示配置（缓存）
 async function getPopupConfig() {
   const cached = await cache.get('config:order_popup');
   if (cached) return cached;
   const cfg = await popupConfigModel.getConfig();
-  await cache.set('config:order_popup', cfg, 300);
-  return cfg;
+  const result = {
+    enabled: Number(cfg.enabled || 0),
+    title: cfg.title || '充值提示',
+    content: cfg.content || '',
+    account_name: cfg.account_name || '',
+    bank_card: cfg.bank_card || '',
+    bank_name: cfg.bank_name || ''
+  };
+  await cache.set('config:order_popup', result, 300);
+  return result;
 }
 
 async function updatePopupConfig(data, operatorId) {

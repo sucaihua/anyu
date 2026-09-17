@@ -212,6 +212,13 @@ img{max-width:100%;display:block;}
 .popup-preview-title{font-weight:700;color:#b45309;margin-bottom:var(--space-2);}
 .popup-preview-content{color:#92400e;font-size:14px;line-height:1.7;}
 .popup-preview-note{margin-top:12px;font-size:12px;color:var(--c-muted);}
+.preview-bank{margin-top:14px;border:1px solid #f59e0b;border-radius:10px;overflow:hidden;}
+.preview-bank-row{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px;color:#92400e;background:rgba(255,255,255,.5);}
+.preview-bank-row + .preview-bank-row{border-top:1px dashed #f59e0b;}
+.preview-bank-row span{width:60px;flex-shrink:0;color:#b45309;}
+.preview-bank-row b{font-weight:600;word-break:break-all;}
+.copy-btn{margin-left:auto;flex-shrink:0;border:1px solid #f59e0b;background:#fff;color:#b45309;border-radius:6px;padding:2px 10px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#fef3c7;}
 
 /* 响应式：侧边栏抽屉化 */
 @media (max-width:960px){
