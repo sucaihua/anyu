@@ -270,7 +270,7 @@ async function requireAdmin() {
         const revenue = paid.reduce((s, x) => s + Number(x.amount), 0);
         document.getElementById('statOrders').textContent = o.data.total;
         document.getElementById('sideOrdBadge').textContent = o.data.total;
-        document.getElementById('statRevenue').textContent = '¥' + fmt.money(revenue);
+        document.getElementById('statRevenue').textContent = '$' + fmt.money(revenue);
       }
     } catch (e) { Toast.error('加载概览失败'); }
   }
@@ -292,7 +292,7 @@ async function requireAdmin() {
           <td class="strong">${escapeHtml(u.username)}</td>
           <td style="color:var(--c-muted);">${escapeHtml(u.email)}</td>
           <td>${u.role === 1 ? '<span class="badge badge-primary">管理员</span>' : '<span class="badge badge-muted">用户</span>'}</td>
-          <td class="num">¥${fmt.money(u.balance)}</td>
+          <td class="num">$${fmt.money(u.balance)}</td>
           <td>${u.status === 1 ? '<span class="badge badge-success">正常</span>' : '<span class="badge badge-danger">禁用</span>'}</td>
           <td style="color:var(--c-muted);font-size:13px;">${fmt.date(u.created_at)}</td>
           <td><div class="row-actions" style="justify-content:flex-end;">
@@ -338,7 +338,7 @@ async function requireAdmin() {
       if (!(amt > 0)) return Toast.error('金额必须为正数');
       const r = await Auth.post('/api/admin/users/balance', { userId, amount: amt, remark });
       if (r.code === 0) {
-        Toast.success(`充值成功，当前余额 ¥${fmt.money(r.data.balanceAfter)}`);
+        Toast.success(`充值成功，当前余额 $${fmt.money(r.data.balanceAfter)}`);
         m.close(); loadUsers();
       } else Toast.error(r.message);
     });
@@ -365,8 +365,8 @@ async function requireAdmin() {
           <table class="admin-table"><thead><tr><th>类型</th><th>金额</th><th>变动后余额</th><th>备注</th><th>时间</th></tr></thead><tbody>
           ${list.map((x) => `<tr>
             <td><span class="badge ${x.type === 1 ? 'badge-success' : x.type === 2 ? 'badge-danger' : 'badge-warn'}">${REC_TYPE[x.type]}</span></td>
-            <td class="num">${x.type === 1 ? '+' : '-'}¥${fmt.money(x.amount)}</td>
-            <td class="num">¥${fmt.money(x.balance_after)}</td>
+            <td class="num">${x.type === 1 ? '+' : '-'}$${fmt.money(x.amount)}</td>
+            <td class="num">$${fmt.money(x.balance_after)}</td>
             <td style="color:var(--c-muted);">${escapeHtml(x.remark || '-')}</td>
             <td style="color:var(--c-muted);font-size:13px;">${fmt.date(x.created_at)}</td></tr>`).join('')}
           </tbody></table></div>`;
@@ -491,7 +491,7 @@ async function requireAdmin() {
           <td><div class="strong">${escapeHtml(p.name)}</div>
             ${p.description ? `<div style="font-size:12px;color:var(--c-muted);margin-top:2px;">${escapeHtml(p.description).slice(0, 40)}${p.description.length > 40 ? '...' : ''}</div>` : ''}</td>
           <td>${p.category_name ? `<span class="badge badge-muted">${escapeHtml(p.category_name)}</span>` : '<span style="color:var(--c-muted);">-</span>'}</td>
-          <td class="num">¥${fmt.money(p.price)}</td>
+          <td class="num">$${fmt.money(p.price)}</td>
           <td class="num">${p.stock}</td>
           <td><label class="switch"><input type="checkbox" data-toggle="${p.id}" ${p.status === 1 ? 'checked' : ''}><span class="switch-slider"></span></label></td>
           <td style="color:var(--c-muted);font-size:13px;">${fmt.date(p.updated_at)}</td>
@@ -624,7 +624,7 @@ async function requireAdmin() {
           <td class="mono">${escapeHtml(o.order_no)}</td>
           <td>${escapeHtml(o.username || ('#' + o.user_id))}</td>
           <td class="strong">${escapeHtml(o.product_name)}${o.spec_desc ? `<div style="font-size:12px;color:var(--c-muted);margin-top:2px;">${escapeHtml(o.spec_desc)}</div>` : ''}</td>
-          <td class="num">¥${fmt.money(o.amount)}</td>
+          <td class="num">$${fmt.money(o.amount)}</td>
           <td><span class="badge ${STATUS[o.status][1]}">${STATUS[o.status][0]}</span></td>
           <td style="color:var(--c-muted);font-size:13px;">${fmt.date(o.paid_at || o.created_at)}</td>
           <td><div class="row-actions" style="justify-content:flex-end;">
@@ -666,7 +666,7 @@ async function requireAdmin() {
           <td class="mono">#${x.id}</td>
           <td><div class="strong">${escapeHtml(x.username || ('#' + x.user_id))}</div>
             ${x.email ? `<div style="font-size:12px;color:var(--c-muted);">${escapeHtml(x.email)}</div>` : ''}</td>
-          <td class="num">¥${fmt.money(x.amount)}</td>
+          <td class="num">$${fmt.money(x.amount)}</td>
           <td><span class="badge ${RC_STATUS[x.status][1]}">${RC_STATUS[x.status][0]}</span></td>
           <td style="color:var(--c-muted);font-size:13px;">${escapeHtml(x.remark || '-')}</td>
           <td style="color:var(--c-muted);font-size:13px;">${fmt.date(x.created_at)}</td>
@@ -686,7 +686,7 @@ async function requireAdmin() {
       const id = Number(t.dataset.confirm);
       const ok = await Modal.confirm({
         title: '确认到账',
-        content: `<div style="line-height:1.8;">确定【${escapeHtml(t.dataset.name || '#' + id)}】充值 <b style="color:var(--c-primary);">¥${fmt.money(Number(t.dataset.amt))}</b> 已到账？<br><span style="color:var(--c-danger);">确认后金额将立即加到该用户余额。</span></div>`,
+        content: `<div style="line-height:1.8;">确定【${escapeHtml(t.dataset.name || '#' + id)}】充值 <b style="color:var(--c-primary);">$${fmt.money(Number(t.dataset.amt))}</b> 已到账？<br><span style="color:var(--c-danger);">确认后金额将立即加到该用户余额。</span></div>`,
         okText: '确认到账', okClass: 'btn-primary'
       });
       if (!ok) return;

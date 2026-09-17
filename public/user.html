@@ -20,7 +20,7 @@
       <aside>
         <div class="balance-card">
           <div class="balance-label">账户余额</div>
-          <div class="balance-amount"><small>¥</small><span id="balAmount">0.00</span></div>
+          <div class="balance-amount"><small>$</small><span id="balAmount">0.00</span></div>
           <button class="btn btn-primary btn-sm" id="rechargeBtn" style="width:100%;margin-top:14px;justify-content:center;">+ 充值</button>
           <div class="balance-meta">充值后到账由后台确认，请保留转账凭证</div>
         </div>
@@ -109,8 +109,8 @@
                   ${list.map((x) => `
                     <tr>
                       <td data-label="类型"><span class="badge ${x.type === 1 ? 'badge-success' : x.type === 2 ? 'badge-danger' : 'badge-warn'}">${REC_TYPE_MAP[x.type] || '-'}</span></td>
-                      <td data-label="金额" style="font-weight:600;">${x.type === 1 ? '+' : '-'}¥${fmt.money(x.amount)}</td>
-                      <td data-label="变动后余额">¥${fmt.money(x.balance_after)}</td>
+                      <td data-label="金额" style="font-weight:600;">${x.type === 1 ? '+' : '-'}$${fmt.money(x.amount)}</td>
+                      <td data-label="变动后余额">$${fmt.money(x.balance_after)}</td>
                       <td data-label="备注">${escapeHtml(x.remark || '-')}</td>
                       <td data-label="时间">${fmt.date(x.created_at)}</td>
                     </tr>
@@ -141,7 +141,7 @@
                     <tr>
                       <td data-label="订单号" style="font-family:monospace;font-size:12px;">${escapeHtml(o.order_no)}</td>
                       <td data-label="商品">${escapeHtml(o.product_name)}${o.spec_desc ? `<div style="font-size:12px;color:var(--c-muted);margin-top:2px;">${escapeHtml(o.spec_desc)}</div>` : ''}</td>
-                      <td data-label="金额" style="font-weight:600;">¥${fmt.money(o.amount)}</td>
+                      <td data-label="金额" style="font-weight:600;">$${fmt.money(o.amount)}</td>
                       <td data-label="状态"><span class="badge ${STATUS[o.status][1]}">${STATUS[o.status][0]}</span></td>
                       <td data-label="下单时间">${fmt.date(o.paid_at || o.created_at)}</td>
                     </tr>
@@ -275,7 +275,7 @@
                   ${list.map((x) => `
                     <tr>
                       <td data-label="单号" style="font-family:monospace;font-size:12px;">#${x.id}</td>
-                      <td data-label="金额" style="font-weight:600;">¥${fmt.money(x.amount)}</td>
+                      <td data-label="金额" style="font-weight:600;">$${fmt.money(x.amount)}</td>
                       <td data-label="状态"><span class="badge ${RC_STATUS[x.status][1]}">${RC_STATUS[x.status][0]}</span></td>
                       <td data-label="备注">${escapeHtml(x.remark || '-')}</td>
                       <td data-label="提交时间">${fmt.date(x.created_at)}</td>

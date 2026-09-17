@@ -15,7 +15,7 @@
       <h1>畅享预充值购物</h1>
       <p>预存余额，一键下单。后台托管，安全可靠。下单即时扣款，无需等待在线支付。</p>
       <a class="balance-chip" id="balanceChip" href="/user" style="display:none;">
-        当前余额：<b id="heroBalance">0.00</b>
+        当前余额：$<b id="heroBalance">0.00</b>
       </a>
     </section>
 
@@ -85,7 +85,7 @@
         try {
           const bal = await API.get('/api/user/balance');
           if (bal.code === 0) {
-            chip.innerHTML = `当前余额：<b id="heroBalance">${fmt.money(bal.data.amount)}</b>`;
+            chip.innerHTML = `当前余额:<b id="heroBalance">$${fmt.money(bal.data.amount)}</b>`;
           } else {
             chip.style.display = 'none';
           }
@@ -124,7 +124,7 @@
         const hasSpec = p.specJson && Object.keys(p.specJson).length > 0;
         const stock = Number(p.stock) || 0;
         const stockLabel = hasSpec ? (stock > 0 ? `多规格·库存 ${stock}` : '多规格·已售罄') : (stock > 0 ? `库存 ${stock}` : '已售罄');
-        const priceLabel = `¥${fmt.money(p.price)}`;
+        const priceLabel = `$${fmt.money(p.price)}`;
         const btnText = stock > 0 ? (hasSpec ? '选规格购买' : '立即购买') : '缺货';
         return `
         <article class="product-card">
@@ -226,10 +226,10 @@
       const confirmOk = await Modal.confirm({
         title: '确认下单',
         content: `
-          <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;flex-direction:column;gap:3px;">
             <div><b>商品：</b>${escapeHtml(showName)}</div>
-            <div><b>单价：</b>¥${fmt.money(payAmount)}</div>
-            <div><b>实付：</b><span style="color:var(--c-primary);font-weight:700;font-size:18px;">¥${fmt.money(payAmount)}</span></div>
+            <div><b>单价：</b>$${fmt.money(payAmount)}</div>
+            <div><b>实付：</b><span style="color:var(--c-primary);font-weight:700;font-size:18px;">$${fmt.money(payAmount)}</span></div>
             <div style="color:var(--c-muted);font-size:13px;">下单即时从余额扣除</div>
           </div>
         `,

@@ -102,7 +102,7 @@ const contentHelpers = {
           <table style="width:100%;border-collapse:collapse;font-size:14px;color:#1e293b;">
             <tr><td style="padding:8px 0;color:#64748b;">订单号</td><td style="padding:8px 0;font-weight:600;text-align:right;">${orderNo}</td></tr>
             <tr><td style="padding:8px 0;color:#64748b;">商品</td><td style="padding:8px 0;font-weight:600;text-align:right;">${productName}</td></tr>
-            <tr><td style="padding:8px 0;color:#64748b;">金额</td><td style="padding:8px 0;font-weight:700;color:#6366f1;text-align:right;">¥${Number(amount).toFixed(2)}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;">金额</td><td style="padding:8px 0;font-weight:700;color:#6366f1;text-align:right;">$${Number(amount).toFixed(2)}</td></tr>
           </table>
         </div>
         <p style="margin-top:20px;color:#94a3b8;font-size:12px;">此邮件由 Anyu 系统自动发送，请勿直接回复。</p>
@@ -160,10 +160,10 @@ function rechargeHtml({ kind, username, amount, balanceAfter, requestId, remark 
   const rows = `
     <tr><td style="padding:8px 0;color:#64748b;">用户</td><td style="padding:8px 0;font-weight:600;text-align:right;">${username || '-'}</td></tr>
     <tr><td style="padding:8px 0;color:#64748b;">申请单号</td><td style="padding:8px 0;font-weight:600;text-align:right;">#${requestId}</td></tr>
-    <tr><td style="padding:8px 0;color:#64748b;">金额</td><td style="padding:8px 0;font-weight:700;color:#10b981;text-align:right;">¥${Number(amount).toFixed(2)}</td></tr>
+    <tr><td style="padding:8px 0;color:#64748b;">金额</td><td style="padding:8px 0;font-weight:700;color:#10b981;text-align:right;">$${Number(amount).toFixed(2)}</td></tr>
     ${isSubmit
       ? `<tr><td style="padding:8px 0;color:#64748b;">备注</td><td style="padding:8px 0;font-weight:600;text-align:right;">${remark || '-'}</td></tr>`
-      : `<tr><td style="padding:8px 0;color:#64748b;">当前余额</td><td style="padding:8px 0;font-weight:700;color:#6366f1;text-align:right;">¥${Number(balanceAfter).toFixed(2)}</td></tr>`
+      : `<tr><td style="padding:8px 0;color:#64748b;">当前余额</td><td style="padding:8px 0;font-weight:700;color:#6366f1;text-align:right;">$${Number(balanceAfter).toFixed(2)}</td></tr>`
     }`;
   const tip = isSubmit
     ? '用户已提交充值申请，请登录后台尽快核对并确认到账。'
