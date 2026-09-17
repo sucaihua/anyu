@@ -618,7 +618,7 @@ async function requireAdmin() {
 
     const skuWrap = m.el.querySelector('#skuTableWrap');
 
-    // 渲染 SKU 表格，existingMap: specJson字符串 -> {price, stock}
+    // 渲染 SKU 表格，existingMap: specJson字符串 -> {price, stock, status}
     function renderSkuTable(existingMap = {}) {
       const text = m.el.querySelector('#pSpecs').value;
       const dims = parseSpecText(text);
@@ -628,17 +628,24 @@ async function requireAdmin() {
       }
       const combos = cartesian(dims);
       skuWrap.innerHTML = `
-        <table class="admin-table" style="font-size:13px;">
-          <thead><tr><th>规格组合</th><th style="width:130px;">价格（元）</th><th style="width:110px;">库存</th></tr></thead>
+        <table class="sku-table">
+          <thead><tr>
+            <th>规格组合</th>
+            <th class="col-price">价格（元）</th>
+            <th class="col-stock">库存</th>
+            <th class="col-status">启用</th>
+          </tr></thead>
           <tbody>
             ${combos.map((obj) => {
               const key = JSON.stringify(obj);
               const ex = existingMap[key] || {};
               const desc = specDescOf(obj);
+              const checked = ex.status !== 0 ? 'checked' : '';
               return `<tr data-sku="${escapeHtml(key)}">
-                <td>${escapeHtml(desc)}</td>
-                <td><input class="input sku-price" type="number" min="0" step="0.01" value="${ex.price != null ? ex.price : ''}" style="width:110px;"></td>
-                <td><input class="input sku-stock" type="number" min="0" step="1" value="${ex.stock != null ? ex.stock : 0}" style="width:90px;"></td>
+                <td class="sku-desc">${escapeHtml(desc)}</td>
+                <td><input class="input sku-price" type="number" min="0" step="0.01" value="${ex.price != null ? ex.price : ''}"></td>
+                <td><input class="input sku-stock" type="number" min="0" step="1" value="${ex.stock != null ? ex.stock : 0}"></td>
+                <td class="sku-status"><label class="switch"><input type="checkbox" class="sku-status-chk" ${checked}><span class="switch-slider"></span></label></td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -648,7 +655,7 @@ async function requireAdmin() {
     // 编辑时初始化：用现有 skus 构造 existingMap 并渲染
     if (p && p.skus && p.skus.length) {
       const map = {};
-      p.skus.forEach((s) => { map[JSON.stringify(s.specJson)] = { price: s.price, stock: s.stock }; });
+      p.skus.forEach((s) => { map[JSON.stringify(s.specJson)] = { price: s.price, stock: s.stock, status: s.status }; });
       renderSkuTable(map);
     } else {
       renderSkuTable();
@@ -661,7 +668,8 @@ async function requireAdmin() {
         const key = tr.dataset.sku;
         const price = tr.querySelector('.sku-price')?.value;
         const stock = tr.querySelector('.sku-stock')?.value;
-        if (key) existing[key] = { price: price === '' ? null : Number(price), stock: stock === '' ? null : Number(stock) };
+        const status = tr.querySelector('.sku-status-chk')?.checked ? 1 : 0;
+        if (key) existing[key] = { price: price === '' ? null : Number(price), stock: stock === '' ? null : Number(stock), status };
       });
       renderSkuTable(existing);
     });
@@ -692,9 +700,10 @@ async function requireAdmin() {
           try { obj = JSON.parse(tr.dataset.sku); } catch { continue; }
           const price = Number(tr.querySelector('.sku-price').value);
           const stock = Number(tr.querySelector('.sku-stock').value);
+          const status = tr.querySelector('.sku-status-chk')?.checked ? 1 : 0;
           if (!(price >= 0)) return Toast.error('SKU 价格不合法：' + specDescOf(obj));
           if (!(stock >= 0)) return Toast.error('SKU 库存不合法：' + specDescOf(obj));
-          skus.push({ specJson: obj, specDesc: specDescOf(obj), price, stock, status: 1 });
+          skus.push({ specJson: obj, specDesc: specDescOf(obj), price, stock, status });
         }
         body.skus = skus;
       } else {
