@@ -205,7 +205,7 @@ function renderNav(active) {
     <nav class="nav">
       <div class="nav-inner">
         <a href="/" class="brand">
-          <span class="brand-logo">Z</span>
+          <img class="brand-logo" src="/image/logo.jpg?v=1" alt="ZiyuanClub">
           <span>ZiyuanClub</span>
         </a>
         <button class="nav-toggle" id="navToggle" aria-label="菜单"><span></span></button>

@@ -92,14 +92,11 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   color: var(--c-primary);
 }
 .brand-logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #6366f1, #a855f7);
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-weight: 800;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  object-fit: cover;
+  display: block;
 }
 .nav-links {
   display: flex;

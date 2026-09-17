@@ -177,10 +177,9 @@ async function requireAdmin() {
   if (!(await requireAdmin())) return;
 
   const user = Auth.getUser();
-  // 侧边栏底部展示当前管理员；填充用户名
+  // 侧边栏底部展示当前管理员；填充用户名（头像为固定 logo 图片）
   const avaEl = document.getElementById('sideUser');
   if (avaEl && user) {
-    avaEl.querySelector('.ava').textContent = (user.username || 'A')[0].toUpperCase();
     avaEl.querySelector('.uname').textContent = user.username;
     avaEl.querySelector('.uemail').textContent = user.email || '';
   }
