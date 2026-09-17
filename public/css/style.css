@@ -143,23 +143,22 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .nav-toggle.open span::after { top: 0; transform: rotate(-45deg); }
 
 @media (max-width: 720px) {
-  .nav-toggle { display: flex; }
+  .nav { height: auto; }
+  .nav-inner { flex-wrap: wrap; }
+  .nav-toggle { display: flex; margin-left: auto; }
   .nav-links, .nav-right {
-    position: fixed;
-    top: var(--nav-h);
-    left: 0; right: 0;
-    background: var(--c-card);
+    flex-basis: 100%;
+    display: none;
     flex-direction: column;
-    padding: var(--space-4);
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-200%);
-    transition: transform .3s var(--ease-out);
-    margin: 0;
+    align-items: stretch;
     gap: var(--space-2);
+    padding: var(--space-2) 0 var(--space-4);
+    margin: 0;
   }
-  .nav-right { top: calc(var(--nav-h) + 180px); }
-  .nav-links.open, .nav-right.open { transform: translateY(0); }
+  .nav-links.open, .nav-right.open { display: flex; }
   .nav-links a { width: 100%; }
+  .nav-right { align-items: stretch; }
+  .nav-right .btn { justify-content: center; }
 }
 
 /* ========== 按钮 ========== */
