@@ -111,7 +111,7 @@ const contentHelpers = {
 };
 
 // 用户提交充值申请后通知管理员（fire-and-forget：失败不阻断提交主流程）
-async function sendRechargeSubmitNotify({ username, amount, requestId, remark }) {
+async function sendRechargeSubmitNotify({ username, email, amount, requestId, remark }) {
   try {
     const secret = await mailConfigModel.getSecretConfig();
     if (!secret || Number(secret.enabled) !== 1) return;
@@ -130,7 +130,7 @@ async function sendRechargeSubmitNotify({ username, amount, requestId, remark })
       mailer.send(secret, {
         to: adminMail,
         subject: '【Anyu】新充值申请提醒',
-        html: rechargeHtml({ kind: 'submit', username, amount, requestId, remark })
+        html: rechargeHtml({ kind: 'submit', username, email, amount, requestId, remark })
       }).catch((e) => logger.warn('[mail] 充值申请通知发送失败', { err: e.message, to: adminMail }));
     });
   } catch (err) {
@@ -157,11 +157,12 @@ async function sendRechargeConfirmedNotify({ to, username, amount, balanceAfter,
   }
 }
 
-function rechargeHtml({ kind, username, amount, balanceAfter, requestId, remark }) {
+function rechargeHtml({ kind, username, email, amount, balanceAfter, requestId, remark }) {
   const isSubmit = kind === 'submit';
   const title = isSubmit ? '新的充值申请' : '充值已到账';
   const rows = `
     <tr><td style="padding:8px 0;color:#64748b;">用户</td><td style="padding:8px 0;font-weight:600;text-align:right;">${username || '-'}</td></tr>
+    ${isSubmit && email ? `<tr><td style="padding:8px 0;color:#64748b;">用户邮箱</td><td style="padding:8px 0;font-weight:600;text-align:right;">${email}</td></tr>` : ''}
     <tr><td style="padding:8px 0;color:#64748b;">申请单号</td><td style="padding:8px 0;font-weight:600;text-align:right;">#${requestId}</td></tr>
     <tr><td style="padding:8px 0;color:#64748b;">金额</td><td style="padding:8px 0;font-weight:700;color:#10b981;text-align:right;">$${Number(amount).toFixed(2)}</td></tr>
     ${isSubmit

@@ -14,8 +14,7 @@ async function submit(req, res, next) {
   try {
     const r = await rechargeService.submit(req.user.id, {
       amount: req.body.amount,
-      remark: req.body.remark,
-      username: req.user.username
+      remark: req.body.remark
     });
     return success(res, r, '充值申请已提交，等待后台确认到账');
   } catch (e) {

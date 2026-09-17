@@ -9,13 +9,22 @@ const cache = require('../utils/cache');
 const logger = require('../utils/logger');
 
 // 用户提交充值申请（线下转账后填写，等待后台确认到账）
-async function submit(userId, { amount, remark = '', username = '' }) {
+async function submit(userId, { amount, remark = '' }) {
   if (!(amount > 0)) throw new AppError(ERR.PARAMS, '充值金额必须为正');
   const id = await rechargeModel.create(userId, amount, remark);
   // 新充值申请通知管理员（fire-and-forget：邮件失败不阻断提交）
-  mailConfigService
-    .sendRechargeSubmitNotify({ username, amount, requestId: id, remark })
-    .catch(() => {});
+  // 用户信息从数据库读取，避免前端/JWT 缺失导致邮件内容为空
+  userModel.findById(userId).then((u) => {
+    mailConfigService
+      .sendRechargeSubmitNotify({
+        username: u ? u.username : '',
+        email: u ? u.email : '',
+        amount,
+        requestId: id,
+        remark
+      })
+      .catch(() => {});
+  }).catch(() => {});
   return { id };
 }
 
