@@ -121,29 +121,25 @@
         return;
       }
       grid.innerHTML = shown.map((p) => {
-        const multi = p.skus && p.skus.length > 0;
-        const totalStock = multi ? p.skus.reduce((s, x) => s + Number(x.stock), 0) : Number(p.stock);
-        const stockLabel = multi
-          ? (totalStock > 0 ? `多规格·库存 ${totalStock}` : '多规格·已售罄')
-          : (totalStock > 0 ? `库存 ${totalStock}` : '已售罄');
-        const priceLabel = multi
-          ? `¥${fmt.money(Math.min(...p.skus.map((s) => Number(s.price))))} 起`
-          : `¥${fmt.money(p.price)}`;
-        const btnText = totalStock > 0 ? (multi ? '选规格购买' : '立即购买') : '缺货';
+        const hasSpec = p.specJson && Object.keys(p.specJson).length > 0;
+        const stock = Number(p.stock) || 0;
+        const stockLabel = hasSpec ? (stock > 0 ? `多规格·库存 ${stock}` : '多规格·已售罄') : (stock > 0 ? `库存 ${stock}` : '已售罄');
+        const priceLabel = `¥${fmt.money(p.price)}`;
+        const btnText = stock > 0 ? (hasSpec ? '选规格购买' : '立即购买') : '缺货';
         return `
         <article class="product-card">
           <div class="product-cover">${escapeHtml(p.name.slice(0, 2) || '商品')}</div>
           <div class="product-body">
             ${p.category_name ? `<span class="product-cat">${escapeHtml(p.category_name)}</span>` : ''}
-            ${multi ? `<span class="product-cat" style="background:var(--c-primary);color:#fff;">多规格</span>` : ''}
+            ${hasSpec ? `<span class="product-cat" style="background:var(--c-primary);color:#fff;">多规格</span>` : ''}
             <h3 class="product-name">${escapeHtml(p.name)}</h3>
             <p class="product-desc">${escapeHtml(p.description || '暂无描述')}</p>
             <div class="product-foot">
               <div>
                 <div class="product-price">${priceLabel}</div>
-                <div class="product-stock ${totalStock <= 0 ? 'out' : ''}">${stockLabel}</div>
+                <div class="product-stock ${stock <= 0 ? 'out' : ''}">${stockLabel}</div>
               </div>
-              <button class="btn btn-primary btn-sm" data-buy="${p.id}" ${totalStock <= 0 ? 'disabled' : ''}>
+              <button class="btn btn-primary btn-sm" data-buy="${p.id}" ${stock <= 0 ? 'disabled' : ''}>
                 ${btnText}
               </button>
             </div>
@@ -155,38 +151,21 @@
       });
     }
 
-    // 规格选择面板：返回 { id, price, specDesc } 或 null（取消）
-    function openSkuPicker(product) {
+    // 规格选择面板：返回 specDesc 字符串（如 "颜色:红 尺码:S"）或 null（取消）
+    function openSpecPicker(product) {
       return new Promise((resolve) => {
-        // 聚合维度（保持出现顺序）
-        const dimMap = new Map();
-        product.skus.forEach((sku) => {
-          Object.entries(sku.specJson || {}).forEach(([k, v]) => {
-            if (!dimMap.has(k)) dimMap.set(k, []);
-            const vs = dimMap.get(k);
-            const sv = String(v);
-            if (!vs.includes(sv)) vs.push(sv);
-          });
-        });
-        const dims = Array.from(dimMap, ([name, values]) => ({ name, values }));
+        const dims = Object.entries(product.specJson || {}).map(([name, values]) => ({ name, values }));
         const selected = {};
 
         const m = Modal.open({
           title: `选择规格 · ${escapeHtml(product.name)}`,
           body: `<div id="skuBox"></div>`,
           footer: `<button class="btn btn-ghost" data-act="cancel">取消</button>
-                   <button class="btn btn-primary" data-act="ok" disabled>确认下单</button>`
+                   <button class="btn btn-primary" data-act="ok" disabled>确认选择</button>`
         });
         const box = m.el.querySelector('#skuBox');
         const okBtn = m.el.querySelector('[data-act=ok]');
         m.el.querySelector('[data-act=cancel]').addEventListener('click', () => { m.close(); resolve(null); });
-
-        function matchSku() {
-          return product.skus.find((s) => {
-            const entries = Object.entries(s.specJson || {});
-            return entries.length === dims.length && entries.every(([k, v]) => selected[k] === String(v));
-          });
-        }
 
         function render() {
           box.innerHTML = dims.map((dim) => `
@@ -217,27 +196,13 @@
             okBtn.onclick = null;
             return;
           }
-          const sku = matchSku();
-          if (!sku) {
-            summary.innerHTML = `<div style="color:var(--c-danger);">该组合无对应规格</div>`;
-            okBtn.disabled = true;
-            okBtn.onclick = null;
-            return;
-          }
-          if (Number(sku.stock) <= 0) {
-            summary.innerHTML = `<div style="color:var(--c-danger);">该规格已售罄</div>`;
-            okBtn.disabled = true;
-            okBtn.onclick = null;
-            return;
-          }
+          const desc = dims.map((d) => `${d.name}:${selected[d.name]}`).join(' ');
           summary.innerHTML = `
             <div class="sku-info">
-              <span>价格：</span><b style="color:var(--c-primary);font-size:18px;">¥${fmt.money(sku.price)}</b>
-              <span style="margin-left:12px;color:var(--c-muted);">库存 ${sku.stock}</span>
-              <div style="margin-top:4px;color:var(--c-muted);font-size:13px;">已选：${escapeHtml(sku.specDesc || Object.entries(sku.specJson).map(([k,v])=>k+':'+v).join(' / '))}</div>
+              <span>已选：</span><b style="color:var(--c-text);">${escapeHtml(desc)}</b>
             </div>`;
           okBtn.disabled = false;
-          okBtn.onclick = () => { m.close(); resolve({ id: sku.id, price: Number(sku.price), specDesc: sku.specDesc }); };
+          okBtn.onclick = () => { m.close(); resolve(desc); };
         }
         render();
       });
@@ -248,15 +213,15 @@
       const p = products.find((x) => x.id === pid);
       if (!p) return;
 
-      const multi = p.skus && p.skus.length > 0;
-      let skuPicked = null;
-      if (multi) {
-        skuPicked = await openSkuPicker(p);
-        if (!skuPicked) return;
+      const hasSpec = p.specJson && Object.keys(p.specJson).length > 0;
+      let specDesc = null;
+      if (hasSpec) {
+        specDesc = await openSpecPicker(p);
+        if (!specDesc) return;
       }
 
-      const showName = skuPicked ? `${p.name}（${skuPicked.specDesc}）` : p.name;
-      const payAmount = skuPicked ? skuPicked.price : p.price;
+      const showName = specDesc ? `${p.name}（${specDesc}）` : p.name;
+      const payAmount = p.price;
 
       const confirmOk = await Modal.confirm({
         title: '确认下单',
@@ -275,7 +240,7 @@
 
       const idem = 'web_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
       const payload = { productId: pid, idempotencyKey: idem };
-      if (skuPicked) payload.skuId = skuPicked.id;
+      if (specDesc) payload.specDesc = specDesc;
       const json = await API.post('/api/orders', payload);
       if (json.code === 0) {
         Toast.success('下单成功！');

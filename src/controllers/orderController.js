@@ -5,7 +5,7 @@ const { success } = require('../utils/response');
 const placeOrderSchema = {
   body: Joi.object({
     productId: Joi.number().integer().positive().required(),
-    skuId: Joi.number().integer().positive().allow(null),
+    specDesc: Joi.string().max(255).allow('', null),
     idempotencyKey: Joi.string().max(64).allow('', null)
   })
 };
@@ -15,7 +15,7 @@ async function placeOrder(req, res, next) {
     const r = await orderService.placeOrder({
       userId: req.user.id,
       productId: req.body.productId,
-      skuId: req.body.skuId,
+      specDesc: req.body.specDesc,
       idempotencyKey: req.body.idempotencyKey
     });
     return success(res, r, '下单成功');

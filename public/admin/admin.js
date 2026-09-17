@@ -518,49 +518,22 @@ async function requireAdmin() {
   });
 
   // ===== 规格辅助 =====
-  // 解析规格文本：每行 "维度: 值1, 值2" → [{name, values}]
-  function parseSpecText(text) {
-    return String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line) => {
+  // 解析规格文本：每行 "维度: 值1, 值2" → { 颜色: [红,蓝], 尺码: [S,M] }
+  function parseSpecTextToObject(text) {
+    const out = {};
+    String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean).forEach((line) => {
       const idx = line.indexOf(':');
-      if (idx < 0) return null;
+      if (idx < 0) return;
       const name = line.slice(0, idx).trim();
       const values = line.slice(idx + 1).split(/[，,、]/).map((s) => s.trim()).filter(Boolean);
-      return { name, values };
-    }).filter((d) => d && d.name && d.values.length);
-  }
-  // 笛卡尔积
-  function cartesian(dims) {
-    if (!dims.length) return [];
-    let acc = [{}];
-    for (const dim of dims) {
-      const next = [];
-      for (const cur of acc) {
-        for (const v of dim.values) {
-          next.push({ ...cur, [dim.name]: v });
-        }
-      }
-      acc = next;
-    }
-    return acc;
-  }
-  function specDescOf(obj) {
-    return Object.entries(obj).map(([k, v]) => `${k}:${v}`).join(' ');
-  }
-  // 从现有 skus 反推维度
-  function specsFromSkus(skus) {
-    const map = new Map();
-    (skus || []).forEach((sku) => {
-      Object.entries(sku.specJson || {}).forEach(([k, v]) => {
-        if (!map.has(k)) map.set(k, []);
-        const vs = map.get(k);
-        const sv = String(v);
-        if (!vs.includes(sv)) vs.push(sv);
-      });
+      if (name && values.length) out[name] = values;
     });
-    return Array.from(map, ([name, values]) => ({ name, values }));
+    return Object.keys(out).length ? out : null;
   }
-  function specsToText(dims) {
-    return (dims || []).map((d) => `${d.name}: ${d.values.join(', ')}`).join('\n');
+  // 把 specJson 对象转回文本（编辑时回填）
+  function specJsonToText(specJson) {
+    if (!specJson || typeof specJson !== 'object') return '';
+    return Object.entries(specJson).map(([k, vs]) => `${k}: ${Array.isArray(vs) ? vs.join(', ') : vs}`).join('\n');
   }
 
   async function openProductEditor(id) {
@@ -573,7 +546,7 @@ async function requireAdmin() {
       if (r.code !== 0) return Toast.error(r.message);
       p = r.data;
     }
-    const initSpecText = p && p.skus && p.skus.length ? specsToText(specsFromSkus(p.skus)) : '';
+    const initSpecText = p && p.specJson ? specJsonToText(p.specJson) : '';
     const m = Modal.open({
       title: id ? `编辑商品 · #${id}` : '新增商品', size: 'lg',
       body: `<form class="admin-form" onsubmit="return false;">
@@ -589,8 +562,7 @@ async function requireAdmin() {
             <input class="input" id="pPrice" type="number" min="0" step="0.01" value="${p ? p.price : ''}" style="width:100%;"></div>
         </div>
         <div class="field"><label class="field-label">库存 <span style="color:var(--c-danger);">*</span></label>
-          <input class="input" id="pStock" type="number" min="0" step="1" value="${p ? p.stock : 0}" style="width:100%;">
-          <div class="field-hint">无规格商品使用此库存；有规格商品使用各 SKU 库存合计</div></div>
+          <input class="input" id="pStock" type="number" min="0" step="1" value="${p ? p.stock : 0}" style="width:100%;"></div>
         <div class="field"><label class="field-label">封面图 URL</label>
           <input class="input" id="pCover" value="${escapeHtml(p?.cover || '')}" placeholder="可选" style="width:100%;"></div>
         <div class="field"><label class="field-label">商品描述</label>
@@ -600,10 +572,7 @@ async function requireAdmin() {
           <label class="field-label">商品规格（可选）</label>
           <div class="field-hint" style="margin-bottom:8px;">每行一个维度，格式：<b>维度名: 值1, 值2</b>。留空表示无规格（普通商品）。示例：<br><code>颜色: 红, 蓝<br>尺码: S, M, L</code></div>
           <textarea class="textarea" id="pSpecs" placeholder="颜色: 红, 蓝&#10;尺码: S, M, L" style="min-height:80px;font-family:monospace;">${escapeHtml(initSpecText)}</textarea>
-          <div style="margin-top:8px;">
-            <button type="button" class="btn btn-outline btn-sm" id="pGenSkus">🔄 生成 / 刷新规格表</button>
-          </div>
-          <div id="skuTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
+          <div class="field-hint" style="margin-top:6px;">用户下单时按维度选择，规格仅做记录与展示，不影响价格与库存。</div>
         </div>
 
         <div class="field"><label class="field-label">上架状态</label>
@@ -616,64 +585,6 @@ async function requireAdmin() {
                 <button class="btn btn-primary" data-act="ok">${id ? '保存修改' : '创建商品'}</button>`
     });
 
-    const skuWrap = m.el.querySelector('#skuTableWrap');
-
-    // 渲染 SKU 表格，existingMap: specJson字符串 -> {price, stock, status}
-    function renderSkuTable(existingMap = {}) {
-      const text = m.el.querySelector('#pSpecs').value;
-      const dims = parseSpecText(text);
-      if (!dims.length) {
-        skuWrap.innerHTML = '<div style="color:var(--c-muted);font-size:13px;">未配置规格，将作为普通商品（使用上方库存与价格）。</div>';
-        return;
-      }
-      const combos = cartesian(dims);
-      skuWrap.innerHTML = `
-        <table class="sku-table">
-          <thead><tr>
-            <th>规格组合</th>
-            <th class="col-price">价格（元）</th>
-            <th class="col-stock">库存</th>
-            <th class="col-status">启用</th>
-          </tr></thead>
-          <tbody>
-            ${combos.map((obj) => {
-              const key = JSON.stringify(obj);
-              const ex = existingMap[key] || {};
-              const desc = specDescOf(obj);
-              const checked = ex.status !== 0 ? 'checked' : '';
-              return `<tr data-sku="${escapeHtml(key)}">
-                <td class="sku-desc">${escapeHtml(desc)}</td>
-                <td><input class="input sku-price" type="number" min="0" step="0.01" value="${ex.price != null ? ex.price : ''}"></td>
-                <td><input class="input sku-stock" type="number" min="0" step="1" value="${ex.stock != null ? ex.stock : 0}"></td>
-                <td class="sku-status"><label class="switch"><input type="checkbox" class="sku-status-chk" ${checked}><span class="switch-slider"></span></label></td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>`;
-    }
-
-    // 编辑时初始化：用现有 skus 构造 existingMap 并渲染
-    if (p && p.skus && p.skus.length) {
-      const map = {};
-      p.skus.forEach((s) => { map[JSON.stringify(s.specJson)] = { price: s.price, stock: s.stock, status: s.status }; });
-      renderSkuTable(map);
-    } else {
-      renderSkuTable();
-    }
-
-    m.el.querySelector('#pGenSkus').addEventListener('click', () => {
-      // 生成前尽量保留已填的值
-      const existing = {};
-      skuWrap.querySelectorAll('tr[data-sku]').forEach((tr) => {
-        const key = tr.dataset.sku;
-        const price = tr.querySelector('.sku-price')?.value;
-        const stock = tr.querySelector('.sku-stock')?.value;
-        const status = tr.querySelector('.sku-status-chk')?.checked ? 1 : 0;
-        if (key) existing[key] = { price: price === '' ? null : Number(price), stock: stock === '' ? null : Number(stock), status };
-      });
-      renderSkuTable(existing);
-    });
-
     m.el.querySelector('[data-act=cancel]').addEventListener('click', m.close);
     m.el.querySelector('[data-act=ok]').addEventListener('click', async () => {
       const body = {
@@ -683,33 +594,12 @@ async function requireAdmin() {
         stock: Number(m.el.querySelector('#pStock').value),
         cover: m.el.querySelector('#pCover').value.trim() || null,
         description: m.el.querySelector('#pDesc').value.trim(),
-        status: Number(m.el.querySelector('#pStatus').value)
+        status: Number(m.el.querySelector('#pStatus').value),
+        specJson: parseSpecTextToObject(m.el.querySelector('#pSpecs').value)
       };
       if (!body.name) return Toast.error('名称必填');
       if (!(body.price >= 0)) return Toast.error('价格不合法');
       if (!(body.stock >= 0)) return Toast.error('库存不合法');
-
-      // 收集 SKU
-      const dims = parseSpecText(m.el.querySelector('#pSpecs').value);
-      if (dims.length) {
-        const rows = skuWrap.querySelectorAll('tr[data-sku]');
-        if (!rows.length) return Toast.error('请先点击「生成规格表」');
-        const skus = [];
-        for (const tr of rows) {
-          let obj;
-          try { obj = JSON.parse(tr.dataset.sku); } catch { continue; }
-          const price = Number(tr.querySelector('.sku-price').value);
-          const stock = Number(tr.querySelector('.sku-stock').value);
-          const status = tr.querySelector('.sku-status-chk')?.checked ? 1 : 0;
-          if (!(price >= 0)) return Toast.error('SKU 价格不合法：' + specDescOf(obj));
-          if (!(stock >= 0)) return Toast.error('SKU 库存不合法：' + specDescOf(obj));
-          skus.push({ specJson: obj, specDesc: specDescOf(obj), price, stock, status });
-        }
-        body.skus = skus;
-      } else {
-        // 无规格：显式传空数组，清除旧规格
-        body.skus = [];
-      }
 
       const r = id ? await Auth.put(`/api/products/admin/${id}`, body) : await Auth.post('/api/products/admin', body);
       if (r.code === 0) { Toast.success(id ? '修改成功' : '创建成功'); m.close(); loadProducts(); }

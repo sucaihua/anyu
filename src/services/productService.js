@@ -1,5 +1,4 @@
 const productModel = require('../models/productModel');
-const { getConnection } = require('../config/db');
 const cache = require('../utils/cache');
 const AppError = require('../utils/appError');
 const { ERR } = require('../utils/response');
@@ -9,42 +8,49 @@ const KEY_LIST = 'products:list';
 const KEY_DETAIL = (id) => `product:${id}`;
 const TTL = 60;
 
-// 把 SKU 行的 spec_json 字符串解析为对象，便于前端使用
-function normalizeSkus(skus = []) {
-  return skus.map((s) => ({
-    id: s.id,
-    productId: s.product_id,
-    specJson: typeof s.spec_json === 'string' ? safeParse(s.spec_json) : (s.spec_json || {}),
-    specDesc: s.spec_desc || '',
-    price: Number(s.price),
-    stock: Number(s.stock),
-    status: Number(s.status)
-  }));
-}
-
 function safeParse(str) {
-  try { return JSON.parse(str) || {}; } catch { return {}; }
+  try { return str ? JSON.parse(str) : null; } catch { return null; }
 }
 
-// 上架商品列表（缓存）
+// 规范化商品行：spec_json 字符串 -> specJson 对象；无规格返回 null
+function normalizeProduct(p) {
+  if (!p) return p;
+  const obj = safeParse(p.spec_json);
+  // 仅当对象非空且每个维度有非空数组时视为有效规格
+  const hasSpec = obj && Object.keys(obj).length > 0
+    && Object.values(obj).every((v) => Array.isArray(v) && v.length > 0);
+  p.specJson = hasSpec ? obj : null;
+  delete p.spec_json;
+  return p;
+}
+
 async function listOnSale() {
   const cached = await cache.get(KEY_LIST);
   if (cached) return cached;
-  const list = await productModel.listOnSale();
-  const norm = list.map((p) => ({ ...p, skus: normalizeSkus(p.skus) }));
-  await cache.set(KEY_LIST, norm, TTL);
-  return norm;
+  const list = (await productModel.listOnSale()).map(normalizeProduct);
+  await cache.set(KEY_LIST, list, TTL);
+  return list;
 }
 
 async function getDetail(id) {
   const key = KEY_DETAIL(id);
   const cached = await cache.get(key);
   if (cached) return cached;
-  const p = await productModel.findById(id);
+  const p = normalizeProduct(await productModel.findById(id));
   if (!p) throw new AppError(ERR.NOT_FOUND, '商品不存在');
-  p.skus = normalizeSkus(p.skus);
   await cache.set(key, p, TTL);
   return p;
+}
+
+// 入参的 specJson 对象（{颜色:[红,蓝]}）-> 存储用 JSON 字符串；空则 null
+function toStorageSpec(specJson) {
+  if (!specJson || typeof specJson !== 'object') return null;
+  const cleaned = {};
+  for (const [k, v] of Object.entries(specJson)) {
+    const vs = Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : [];
+    if (k && vs.length) cleaned[k] = vs;
+  }
+  return Object.keys(cleaned).length ? JSON.stringify(cleaned) : null;
 }
 
 function toModelData(data) {
@@ -55,81 +61,41 @@ function toModelData(data) {
     cover: data.cover ?? null,
     description: data.description ?? '',
     category_id: data.categoryId ?? null,
-    status: data.status
+    status: data.status,
+    spec_json: toStorageSpec(data.specJson)
   };
 }
 
-// 规范化入参的 skus
-function toSkuRows(skus = []) {
-  if (!Array.isArray(skus)) return [];
-  return skus
-    .filter((s) => s && typeof s === 'object')
-    .map((s) => ({
-      specJson: typeof s.specJson === 'string' ? safeParse(s.specJson) : (s.specJson || {}),
-      specDesc: s.specDesc || buildSpecDesc(s.specJson),
-      price: Number(s.price) || 0,
-      stock: Number(s.stock) || 0,
-      status: Number(s.status) === 0 ? 0 : 1
-    }));
-}
-
-// 由 specJson 自动生成展示文本，如 {"颜色":"红","尺码":"S"} -> "颜色:红 尺码:S"
-function buildSpecDesc(specJson) {
-  const obj = typeof specJson === 'string' ? safeParse(specJson) : (specJson || {});
-  return Object.entries(obj).map(([k, v]) => `${k}:${v}`).join(' ');
-}
-
 async function adminCreate(data) {
-  const conn = await getConnection();
   try {
-    await conn.beginTransaction();
-    const productId = await productModel.createInConn(conn, toModelData(data));
-    const skus = toSkuRows(data.skus);
-    if (skus.length) {
-      await productModel.replaceSkus(conn, productId, skus);
-    }
-    await conn.commit();
-    await cache.del('products:list');
-    return { id: productId };
+    const id = await productModel.create(toModelData(data));
+    await cache.del(KEY_LIST);
+    return { id };
   } catch (err) {
-    try { await conn.rollback(); } catch (_) {}
     if (err.isAppError) throw err;
     logger.error('[product] adminCreate error', { err: err.message });
     throw new AppError(ERR.SERVER, '创建商品失败');
-  } finally {
-    conn.release();
   }
 }
 
 async function adminUpdate(id, data) {
-  const conn = await getConnection();
   try {
-    await conn.beginTransaction();
-    const affected = await productModel.updateInConn(conn, id, toModelData(data));
-    if (!affected) {
-      await conn.rollback();
-      throw new AppError(ERR.NOT_FOUND, '商品不存在');
-    }
-    // skus 字段存在（无论是否为空数组）才覆盖 SKU；未传则不动
-    if (Array.isArray(data.skus)) {
-      await productModel.replaceSkus(conn, id, toSkuRows(data.skus));
-    }
-    await conn.commit();
-    await cache.del('products:list');
-    await cache.del('product:' + id);
+    const affected = await productModel.update(id, toModelData(data));
+    if (!affected) throw new AppError(ERR.NOT_FOUND, '商品不存在');
+    await cache.del(KEY_LIST);
+    await cache.del(KEY_DETAIL(id));
     return { ok: true };
   } catch (err) {
-    try { await conn.rollback(); } catch (_) {}
     if (err.isAppError) throw err;
     logger.error('[product] adminUpdate error', { err: err.message });
     throw new AppError(ERR.SERVER, '更新商品失败');
-  } finally {
-    conn.release();
   }
 }
 
 async function adminList(params) {
-  return productModel.listForAdmin(params);
+  const r = await productModel.listForAdmin(params);
+  r.list = r.list.map(normalizeProduct);
+  return r;
 }
 
-module.exports = { listOnSale, getDetail, adminCreate, adminUpdate, adminList, normalizeSkus };
+module.exports = { listOnSale, getDetail, adminCreate, adminUpdate, adminList };

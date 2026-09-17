@@ -13,7 +13,7 @@ const logger = require('../utils/logger');
 
 // 下单核心流程：单事务完成库存行锁 + 扣余额原子 + 扣库存原子 + 写订单 + 写流水
 // 幂等：用 Redis 短期幂等键防同一用户短时间内重复点击
-async function placeOrder({ userId, productId, skuId, idempotencyKey }) {
+async function placeOrder({ userId, productId, specDesc, idempotencyKey }) {
   if (!productId) throw new AppError(ERR.PARAMS, '缺少商品 id');
 
   // 幂等：10 秒内同一 key 直接拒绝
@@ -36,65 +36,46 @@ async function placeOrder({ userId, productId, skuId, idempotencyKey }) {
       throw new AppError(ERR.NOT_FOUND, '商品不存在或已下架');
     }
 
-    // 2. 行锁查该商品的启用 SKU 列表，判断是否为规格商品
-    const [skuRows] = await conn.execute(
-      'SELECT id, spec_json, spec_desc, price, stock, status FROM product_skus WHERE product_id = ? AND status = 1 FOR UPDATE',
-      [productId]
-    );
-    const hasSku = skuRows.length > 0;
-
-    let amount;
-    let skuIdOut = null;
-    let specDesc = null;
-
-    if (hasSku) {
-      // 规格商品：必须选择 SKU
-      if (!skuId) {
+    // 2. 校验规格：若商品配置了 spec_json，用户必须传 specDesc
+    const dims = parseDimsFromRow(product.spec_json);
+    if (dims) {
+      if (!specDesc) {
         await conn.rollback();
         throw new AppError(ERR.PARAMS, '请选择商品规格');
       }
-      const sku = skuRows.find((s) => Number(s.id) === Number(skuId));
-      if (!sku) {
+      // 校验用户所选规格与商品配置维度一致
+      if (!validateSpecChoice(dims, specDesc)) {
         await conn.rollback();
-        throw new AppError(ERR.PARAMS, '规格不存在或已停用');
+        throw new AppError(ERR.PARAMS, '规格选择不合法');
       }
-      if (sku.stock <= 0) {
-        await conn.rollback();
-        throw new AppError(ERR.STOCK_NOT_ENOUGH, '该规格库存不足');
-      }
-      // 原子扣 SKU 库存
-      const skuAffected = await productModel.decreaseSkuStock(conn, sku.id);
-      if (skuAffected !== 1) {
-        await conn.rollback();
-        throw new AppError(ERR.STOCK_NOT_ENOUGH, '该规格库存不足');
-      }
-      amount = Number(sku.price);
-      skuIdOut = sku.id;
-      specDesc = sku.spec_desc || '';
-    } else {
-      // 无规格商品：走主库存
-      if (product.stock <= 0) {
-        await conn.rollback();
-        throw new AppError(ERR.STOCK_NOT_ENOUGH, '库存不足');
-      }
-      const stockAffected = await productModel.decreaseStock(conn, productId);
-      if (stockAffected !== 1) {
-        await conn.rollback();
-        throw new AppError(ERR.STOCK_NOT_ENOUGH, '库存不足');
-      }
-      amount = Number(product.price);
+    } else if (specDesc) {
+      // 商品无规格但用户传了 specDesc：忽略并放行（兼容前端多余字段）
     }
 
-    // 3. 原子扣余额（amount >= ? 兜底）
+    // 3. 库存校验
+    if (product.stock <= 0) {
+      await conn.rollback();
+      throw new AppError(ERR.STOCK_NOT_ENOUGH, '库存不足');
+    }
+
+    // 4. 原子扣库存
+    const stockAffected = await productModel.decreaseStock(conn, productId);
+    if (stockAffected !== 1) {
+      await conn.rollback();
+      throw new AppError(ERR.STOCK_NOT_ENOUGH, '库存不足');
+    }
+
+    // 5. 原子扣余额
+    const amount = Number(product.price);
     const affected = await balanceModel.decreaseBalance(conn, userId, amount);
     if (affected !== 1) {
       await conn.rollback();
       throw new AppError(ERR.BALANCE_NOT_ENOUGH, '余额不足');
     }
-    // 扣款成功后让余额缓存立即失效，避免下单后余额显示不更新
+    // 扣款成功后让余额缓存立即失效
     await cache.del(`balance:${userId}`);
 
-    // 4. 写订单（含商品快照 + 规格快照）
+    // 6. 写订单（含商品快照 + 规格快照）
     const orderNo = generateOrderNo(userId);
     const productNameFull = specDesc ? `${product.name}（${specDesc}）` : product.name;
     const orderId = await orderModel.createOrder(conn, {
@@ -104,12 +85,10 @@ async function placeOrder({ userId, productId, skuId, idempotencyKey }) {
       productName: product.name,
       amount,
       status: 1, // 已支付
-      skuId: skuIdOut,
-      specDesc
+      specDesc: specDesc || null
     });
 
-    // 5. 写余额流水（消费）
-    // 取扣款后余额用于流水对账
+    // 7. 写余额流水（消费）
     const [balRows] = await conn.execute(
       'SELECT amount FROM balances WHERE user_id = ? LIMIT 1',
       [userId]
@@ -150,6 +129,43 @@ async function placeOrder({ userId, productId, skuId, idempotencyKey }) {
   } finally {
     conn.release();
   }
+}
+
+// 解析商品 spec_json（字符串/对象）-> { 颜色: [红,蓝], 尺码: [S,M] } 或 null
+function parseDimsFromRow(raw) {
+  let obj = raw;
+  if (typeof raw === 'string') {
+    try { obj = JSON.parse(raw); } catch { return null; }
+  }
+  if (!obj || typeof obj !== 'object') return null;
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const vs = Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : [];
+    if (k && vs.length) out[k] = vs;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+// 校验用户所选 specDesc（如 "颜色:红 尺码:S"）与商品维度配置一致
+function validateSpecChoice(dims, specDesc) {
+  if (!specDesc) return false;
+  // 解析 specDesc -> {颜色:红, 尺码:S}
+  const chosen = {};
+  for (const part of String(specDesc).split(/\s+/)) {
+    const idx = part.indexOf(':');
+    if (idx < 0) return false;
+    const k = part.slice(0, idx).trim();
+    const v = part.slice(idx + 1).trim();
+    if (!k || !v) return false;
+    chosen[k] = v;
+  }
+  const dimKeys = Object.keys(dims);
+  if (dimKeys.length !== Object.keys(chosen).length) return false;
+  for (const k of dimKeys) {
+    if (!chosen.hasOwnProperty(k)) return false;
+    if (!dims[k].includes(chosen[k])) return false;
+  }
+  return true;
 }
 
 // 用户订单列表

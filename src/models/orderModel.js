@@ -1,10 +1,10 @@
 const { query, execute } = require('../config/db');
 
-async function createOrder(conn, { orderNo, userId, productId, productName, amount, status = 1, skuId = null, specDesc = null }) {
+async function createOrder(conn, { orderNo, userId, productId, productName, amount, status = 1, specDesc = null }) {
   const [r] = await conn.execute(
-    `INSERT INTO orders (order_no, user_id, product_id, product_name, sku_id, spec_desc, amount, status, paid_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [orderNo, userId, productId, productName, skuId, specDesc, amount, status]
+    `INSERT INTO orders (order_no, user_id, product_id, product_name, spec_desc, amount, status, paid_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [orderNo, userId, productId, productName, specDesc, amount, status]
   );
   return r.insertId;
 }
@@ -22,7 +22,7 @@ async function findById(id) {
 async function listByUser(userId, { page = 1, size = 20 }) {
   const offset = (page - 1) * size;
   const rows = await query(
-    `SELECT id, order_no, product_id, product_name, sku_id, spec_desc, amount, status, created_at, paid_at
+    `SELECT id, order_no, product_id, product_name, spec_desc, amount, status, created_at, paid_at
      FROM orders WHERE user_id = ?
      ORDER BY id DESC
      LIMIT ? OFFSET ?`,
@@ -48,7 +48,7 @@ async function listForAdmin({ keyword = '', status = -1, page = 1, size = 20 }) 
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
   const listParams = [...params, size, offset];
   const rows = await query(
-    `SELECT o.id, o.order_no, o.user_id, u.username, o.product_id, o.product_name, o.sku_id, o.spec_desc, o.amount, o.status, o.created_at, o.paid_at
+    `SELECT o.id, o.order_no, o.user_id, u.username, o.product_id, o.product_name, o.spec_desc, o.amount, o.status, o.created_at, o.paid_at
      FROM orders o
      LEFT JOIN users u ON u.id = o.user_id
      ${where}
