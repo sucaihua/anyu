@@ -167,6 +167,7 @@ CREATE TABLE `mail_config` (
   `from_name` VARCHAR(60) NOT NULL DEFAULT 'Anyu',
   `from_email` VARCHAR(120) NOT NULL DEFAULT '' COMMENT '发件邮箱',
   `notify_user` TINYINT NOT NULL DEFAULT 1 COMMENT '是否给下单用户发邮件',
+  `notify_recharge` TINYINT NOT NULL DEFAULT 1 COMMENT '是否开启充值邮件提醒',
   `admin_to` VARCHAR(500) NOT NULL DEFAULT '' COMMENT '额外通知的管理员邮箱，多个用英文逗号分隔',
   `updated_by` BIGINT NULL,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

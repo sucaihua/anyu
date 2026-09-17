@@ -33,6 +33,12 @@ async function main() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='邮件通知配置'
   `);
   await conn.query('INSERT IGNORE INTO `mail_config` (`id`) VALUES (1)');
+  // mail_config 增加充值邮件提醒开关（幂等）
+  const mc = await conn.query(`SHOW COLUMNS FROM \`mail_config\` LIKE 'notify_recharge'`);
+  if (!mc[0].length) {
+    await conn.query(`ALTER TABLE \`mail_config\`
+      ADD COLUMN \`notify_recharge\` TINYINT NOT NULL DEFAULT 1 COMMENT '是否开启充值邮件提醒' AFTER \`notify_user\``);
+  }
 
   // 2. categories 商品分类表 + 默认分类
   await conn.query(`

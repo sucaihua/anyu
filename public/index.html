@@ -13,9 +13,9 @@
     <section class="hero" id="hero">
       <h1>畅享预充值购物</h1>
       <p>预存余额，一键下单。后台托管，安全可靠。下单即时扣款，无需等待在线支付。</p>
-      <div class="balance-chip" id="balanceChip" style="display:none;">
+      <a class="balance-chip" id="balanceChip" href="/user" style="display:none;">
         当前余额：<b id="heroBalance">0.00</b>
-      </div>
+      </a>
     </section>
 
     <h2 class="page-title" style="margin-bottom: var(--space-4);">在售商品</h2>
@@ -31,8 +31,37 @@
     let categories = [];
     let activeCat = 0; // 0 表示全部
 
+    // 首屏骨架屏：先占位避免空白与布局跳动
+    function renderSkeletonCards() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = Array.from({ length: 8 }).map(() => `
+        <article class="product-card">
+          <div class="skeleton skeleton-cover"></div>
+          <div class="product-body">
+            <div class="skeleton" style="height:16px;width:52px;border-radius:999px;margin-bottom:8px;"></div>
+            <div class="skeleton" style="height:15px;width:70%;margin-bottom:8px;"></div>
+            <div class="skeleton" style="height:12px;width:90%;margin-bottom:16px;"></div>
+            <div class="skeleton" style="height:16px;width:42%;"></div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    // 余额芯片骨架占位：登录用户先占位，避免余额加载后芯片弹出导致页面跳动
+    function renderBalanceSkeleton() {
+      if (!API.getToken()) return; // 未登录不占位
+      const chip = document.getElementById('balanceChip');
+      chip.style.display = 'inline-flex';
+      chip.innerHTML = '<span class="skeleton" style="height:18px;width:120px;border-radius:999px;"></span>';
+    }
+
     async function loadAll() {
       // 商品 + 分类 + 余额（如已登录）
+      // 分类未返回前先渲染“全部”，防止标签出现时页面跳动
+      document.getElementById('catTabs').innerHTML =
+        '<button class="cat-tab active" data-cat="0">全部</button>';
+      renderSkeletonCards();
+      renderBalanceSkeleton();
       const [prodRes, catRes] = await Promise.all([
         API.get('/api/products'),
         API.get('/api/products/categories').catch(() => ({ data: [] }))
@@ -51,21 +80,25 @@
       }
 
       if (API.getToken()) {
+        const chip = document.getElementById('balanceChip');
         try {
           const bal = await API.get('/api/user/balance');
           if (bal.code === 0) {
-            document.getElementById('heroBalance').textContent = fmt.money(bal.data.amount);
-            document.getElementById('balanceChip').style.display = 'inline-flex';
+            chip.innerHTML = `当前余额：<b id="heroBalance">${fmt.money(bal.data.amount)}</b>`;
+          } else {
+            chip.style.display = 'none';
           }
-        } catch (e) {}
+        } catch (e) {
+          chip.style.display = 'none';
+        }
       }
     }
 
     function renderCats() {
       const host = document.getElementById('catTabs');
       const list = [{ id: 0, name: '全部' }, ...categories];
-      host.innerHTML = list.map((c, i) =>
-        `<button class="cat-tab ${activeCat === c.id ? 'active' : ''}" data-cat="${c.id}" style="animation:cardIn .4s ${i * 40}ms var(--ease-out) backwards;">${escapeHtml(c.name)}</button>`
+      host.innerHTML = list.map((c) =>
+        `<button class="cat-tab ${activeCat === c.id ? 'active' : ''}" data-cat="${c.id}">${escapeHtml(c.name)}</button>`
       ).join('');
       host.querySelectorAll('[data-cat]').forEach((b) => {
         b.addEventListener('click', () => {
@@ -86,8 +119,8 @@
         </div>`;
         return;
       }
-      grid.innerHTML = shown.map((p, i) => `
-        <article class="product-card" style="animation-delay:${i * 40}ms;">
+      grid.innerHTML = shown.map((p) => `
+        <article class="product-card">
           <div class="product-cover">${escapeHtml(p.name.slice(0, 2) || '商品')}</div>
           <div class="product-body">
             ${p.category_name ? `<span class="product-cat">${escapeHtml(p.category_name)}</span>` : ''}

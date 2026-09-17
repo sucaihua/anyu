@@ -760,6 +760,7 @@ async function requireAdmin() {
     document.getElementById('mailFromName').value = mailCfg.from_name || 'Anyu';
     document.getElementById('mailFromEmail').value = mailCfg.from_email || '';
     document.getElementById('mailNotifyUser').checked = mailCfg.notify_user !== 0;
+    document.getElementById('mailNotifyRecharge').checked = mailCfg.notify_recharge !== 0;
     document.getElementById('mailAdminTo').value = mailCfg.admin_to || '';
     updateMailPreview();
   }
@@ -780,6 +781,7 @@ async function requireAdmin() {
       fromName: document.getElementById('mailFromName').value.trim() || 'Anyu',
       fromEmail: document.getElementById('mailFromEmail').value.trim(),
       notifyUser: document.getElementById('mailNotifyUser').checked ? 1 : 0,
+      notifyRecharge: document.getElementById('mailNotifyRecharge').checked ? 1 : 0,
       adminTo: document.getElementById('mailAdminTo').value.trim()
     };
     if (body.enabled && !body.host) return Toast.error('启用邮件提醒前，请先填写 SMTP 主机');

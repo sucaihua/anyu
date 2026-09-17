@@ -64,7 +64,7 @@
                 <div class="field-hint">请按此金额转账到财务收款账户，提交后等待后台确认到账</div></div>
               <div class="field"><label class="field-label">备注</label>
                 <input class="input" id="rcRemark" placeholder="可选，如：银行卡转账订单号" style="width:100%;"></div>
-              <button class="btn btn-primary" id="rcSubmit" style="justify-content:center;width:200px;">确认付款并提交</button>
+              <button class="btn btn-primary" id="rcSubmit" style="justify-content:center;">确认付款并提交</button>
             </form>
           </div>
           <div style="display:flex;align-items:center;margin-bottom:12px;"><b style="font-size:15px;">我的充值记录</b><div class="spacer"></div><button class="btn btn-outline btn-sm" id="rcRefresh">刷新</button></div>
@@ -107,11 +107,11 @@
                 <tbody>
                   ${list.map((x) => `
                     <tr>
-                      <td><span class="badge ${x.type === 1 ? 'badge-success' : x.type === 2 ? 'badge-danger' : 'badge-warn'}">${REC_TYPE_MAP[x.type] || '-'}</span></td>
-                      <td style="font-weight:600;">${x.type === 1 ? '+' : '-'}¥${fmt.money(x.amount)}</td>
-                      <td>¥${fmt.money(x.balance_after)}</td>
-                      <td>${escapeHtml(x.remark || '-')}</td>
-                      <td>${fmt.date(x.created_at)}</td>
+                      <td data-label="类型"><span class="badge ${x.type === 1 ? 'badge-success' : x.type === 2 ? 'badge-danger' : 'badge-warn'}">${REC_TYPE_MAP[x.type] || '-'}</span></td>
+                      <td data-label="金额" style="font-weight:600;">${x.type === 1 ? '+' : '-'}¥${fmt.money(x.amount)}</td>
+                      <td data-label="变动后余额">¥${fmt.money(x.balance_after)}</td>
+                      <td data-label="备注">${escapeHtml(x.remark || '-')}</td>
+                      <td data-label="时间">${fmt.date(x.created_at)}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -138,11 +138,11 @@
                 <tbody>
                   ${list.map((o) => `
                     <tr>
-                      <td style="font-family:monospace;font-size:12px;">${escapeHtml(o.order_no)}</td>
-                      <td>${escapeHtml(o.product_name)}</td>
-                      <td style="font-weight:600;">¥${fmt.money(o.amount)}</td>
-                      <td><span class="badge ${STATUS[o.status][1]}">${STATUS[o.status][0]}</span></td>
-                      <td>${fmt.date(o.paid_at || o.created_at)}</td>
+                      <td data-label="订单号" style="font-family:monospace;font-size:12px;">${escapeHtml(o.order_no)}</td>
+                      <td data-label="商品">${escapeHtml(o.product_name)}</td>
+                      <td data-label="金额" style="font-weight:600;">¥${fmt.money(o.amount)}</td>
+                      <td data-label="状态"><span class="badge ${STATUS[o.status][1]}">${STATUS[o.status][0]}</span></td>
+                      <td data-label="下单时间">${fmt.date(o.paid_at || o.created_at)}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -169,6 +169,8 @@
         b.addEventListener('click', () => {
           document.querySelectorAll('.user-menu-item').forEach((x) => x.classList.remove('active'));
           b.classList.add('active');
+          // 手机端菜单可横向滚动：切换后让当前 tab 保持在可视区
+          b.scrollIntoView({ inline: 'center', block: 'nearest' });
           const tab = b.dataset.tab;
           document.getElementById('recordsView').style.display = tab === 'records' ? '' : 'none';
           document.getElementById('ordersView').style.display = tab === 'orders' ? '' : 'none';
@@ -199,9 +201,9 @@
             ${copy ? `<button type="button" class="bank-copy" data-copy="${escapeHtml(val)}" style="margin-left:auto;flex-shrink:0;border:1px solid var(--c-border);background:transparent;color:var(--c-primary);border-radius:6px;padding:2px 10px;font-size:12px;cursor:pointer;">复制</button>` : ''}
           </div>` : '';
         const box = [
-          row('收款户名', d.account_name),
+          row('收款户名', d.account_name, true),
           row('银行卡号', d.bank_card, true),
-          row('开户行', d.bank_name)
+          row('开户行', d.bank_name, true)
         ].filter(Boolean).join('');
         if (!box) return '';
         return `<div style="margin-top:12px;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;background:var(--c-card);">${box}</div>`;
@@ -217,16 +219,25 @@
             const d = pp.data;
             const content = (escapeHtml(d.content || '') || '请按以下银行卡信息转账，转账后提交申请等待后台确认到账。')
               + bankCardBody(d);
-            const ok = await Modal.confirm({
-              title: d.title || '充值提示',
-              content,
-              okText: '我已付款'
+            // 用 Modal.open 手动构建弹窗，以便在创建后立即绑定「一键复制」事件
+            // （Modal.confirm 的 promise 只有关闭后才 resolve，按钮事件会绑定不上）
+            const confirmed = await new Promise((resolve) => {
+              const m = Modal.open({
+                title: d.title || '充值提示',
+                body: `<div style="color:var(--c-text);font-size:14px;">${content}</div>`,
+                footer: `<button class="btn btn-ghost" data-act="cancel">取消</button>
+                         <button class="btn btn-primary" data-act="ok">我已付款</button>`
+              });
+              m.el.querySelector('[data-act=cancel]').addEventListener('click', () => { m.close(); resolve(false); });
+              m.el.querySelector('[data-act=ok]').addEventListener('click', () => { m.close(); resolve(true); });
+              m.el.querySelectorAll('.bank-copy[data-copy]').forEach((b) => {
+                b.addEventListener('click', () => {
+                  copyText(b.getAttribute('data-copy'));
+                  Toast.success('已复制');
+                });
+              });
             });
-            // 绑定弹窗内一键复制
-            document.querySelectorAll('.bank-copy[data-copy]').forEach((b) => {
-              b.addEventListener('click', () => { copyText(b.getAttribute('data-copy')); });
-            });
-            if (!ok) return;
+            if (!confirmed) return;
           }
         } catch (e) {}
         const r = await API.post('/api/user/recharge/submit', { amount, remark });
@@ -262,11 +273,11 @@
                 <tbody>
                   ${list.map((x) => `
                     <tr>
-                      <td style="font-family:monospace;font-size:12px;">#${x.id}</td>
-                      <td style="font-weight:600;">¥${fmt.money(x.amount)}</td>
-                      <td><span class="badge ${RC_STATUS[x.status][1]}">${RC_STATUS[x.status][0]}</span></td>
-                      <td>${escapeHtml(x.remark || '-')}</td>
-                      <td>${fmt.date(x.created_at)}</td>
+                      <td data-label="单号" style="font-family:monospace;font-size:12px;">#${x.id}</td>
+                      <td data-label="金额" style="font-weight:600;">¥${fmt.money(x.amount)}</td>
+                      <td data-label="状态"><span class="badge ${RC_STATUS[x.status][1]}">${RC_STATUS[x.status][0]}</span></td>
+                      <td data-label="备注">${escapeHtml(x.remark || '-')}</td>
+                      <td data-label="提交时间">${fmt.date(x.created_at)}</td>
                     </tr>
                   `).join('')}
                 </tbody>

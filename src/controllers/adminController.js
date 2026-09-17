@@ -93,6 +93,7 @@ const updateMailConfigSchema = {
     fromName: Joi.string().trim().max(60).allow(''),
     fromEmail: Joi.string().trim().max(120).email().allow(''),
     notifyUser: Joi.number().integer().valid(0, 1),
+    notifyRecharge: Joi.number().integer().valid(0, 1),
     adminTo: Joi.string().trim().max(500).allow('')
   })
 };
@@ -110,6 +111,7 @@ async function updateMailConfig(req, res, next) {
       fromName: d.fromName || 'ZiyuanClub',
       fromEmail: d.fromEmail || '',
       notifyUser: d.notifyUser,
+      notifyRecharge: d.notifyRecharge,
       adminTo: d.adminTo || ''
     }, req.user.id);
     return success(res, { ok: true }, '邮件配置已保存');

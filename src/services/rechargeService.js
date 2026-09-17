@@ -1,15 +1,21 @@
 const { getConnection } = require('../config/db');
 const rechargeModel = require('../models/rechargeModel');
 const balanceModel = require('../models/balanceModel');
+const userModel = require('../models/userModel');
+const mailConfigService = require('./mailConfigService');
 const AppError = require('../utils/appError');
 const { ERR } = require('../utils/response');
 const cache = require('../utils/cache');
 const logger = require('../utils/logger');
 
 // 用户提交充值申请（线下转账后填写，等待后台确认到账）
-async function submit(userId, { amount, remark = '' }) {
+async function submit(userId, { amount, remark = '', username = '' }) {
   if (!(amount > 0)) throw new AppError(ERR.PARAMS, '充值金额必须为正');
   const id = await rechargeModel.create(userId, amount, remark);
+  // 新充值申请通知管理员（fire-and-forget：邮件失败不阻断提交）
+  mailConfigService
+    .sendRechargeSubmitNotify({ username, amount, requestId: id, remark })
+    .catch(() => {});
   return { id };
 }
 
@@ -64,6 +70,20 @@ async function adminConfirm(id, operatorId) {
     await rechargeModel.markConfirmed(conn, req.id, operatorId);
     await conn.commit();
     await cache.del(`balance:${req.user_id}`);
+    // 到账后邮件提醒用户（fire-and-forget：邮件失败不阻断确认）
+    userModel.findById(req.user_id).then((u) => {
+      if (u) {
+        mailConfigService
+          .sendRechargeConfirmedNotify({
+            to: u.email,
+            username: u.username,
+            amount: req.amount,
+            balanceAfter,
+            requestId: req.id
+          })
+          .catch(() => {});
+      }
+    }).catch(() => {});
     return { balanceAfter, userId: req.user_id };
   } catch (err) {
     try { await conn.rollback(); } catch (_) {}

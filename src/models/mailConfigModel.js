@@ -3,7 +3,7 @@ const { query, execute } = require('../config/db');
 async function getConfig() {
   const rows = await query(
     `SELECT id, enabled, host, port, secure, mail_user, mail_pass, from_name, from_email,
-            notify_user, admin_to, updated_at
+            notify_user, notify_recharge, admin_to, updated_at
      FROM mail_config WHERE id = 1 LIMIT 1`
   );
   const cfg = rows[0];
@@ -24,8 +24,8 @@ async function updateConfig(data) {
   const r = await execute(
     `INSERT INTO mail_config
         (id, enabled, host, port, secure, mail_user, mail_pass, from_name, from_email,
-         notify_user, admin_to, updated_by)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         notify_user, notify_recharge, admin_to, updated_by)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
         enabled = VALUES(enabled),
         host = VALUES(host),
@@ -36,11 +36,12 @@ async function updateConfig(data) {
         from_name = VALUES(from_name),
         from_email = VALUES(from_email),
         notify_user = VALUES(notify_user),
+        notify_recharge = VALUES(notify_recharge),
         admin_to = VALUES(admin_to),
         updated_by = VALUES(updated_by)`,
     [
       data.enabled, data.host, data.port, data.secure, data.mail_user, data.mail_pass || '',
-      data.from_name, data.from_email, data.notify_user, data.admin_to || '', data.updatedBy
+      data.from_name, data.from_email, data.notify_user, data.notify_recharge, data.admin_to || '', data.updatedBy
     ]
   );
   return r.affectedRows;

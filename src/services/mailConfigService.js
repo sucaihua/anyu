@@ -27,6 +27,7 @@ async function updateConfig(data, operatorId) {
     from_name: data.fromName || 'Anyu',
     from_email: data.fromEmail || '',
     notify_user: data.notifyUser,
+    notify_recharge: data.notifyRecharge !== undefined ? data.notifyRecharge : 1,
     admin_to: data.adminTo || '',
     updatedBy: operatorId
   });
@@ -109,4 +110,73 @@ const contentHelpers = {
   }
 };
 
-module.exports = { getConfig, updateConfig, sendTest, sendOrderReminder };
+// 用户提交充值申请后通知管理员（fire-and-forget：失败不阻断提交主流程）
+async function sendRechargeSubmitNotify({ username, amount, requestId, remark }) {
+  try {
+    const secret = await mailConfigModel.getSecretConfig();
+    if (!secret || Number(secret.enabled) !== 1) return;
+    if (!mailer.isSmtpUsable(secret)) return;
+    if (Number(secret.notify_recharge) !== 1) return;
+    if (!secret.admin_to) return;
+
+    secret.admin_to
+      .split(/[,，]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .forEach((adminMail) => {
+        mailer.send(secret, {
+          to: adminMail,
+          subject: '【Anyu】新充值申请提醒',
+          html: rechargeHtml({ kind: 'submit', username, amount, requestId, remark })
+        }).catch((e) => logger.warn('[mail] 充值申请通知发送失败', { err: e.message, to: adminMail }));
+      });
+  } catch (err) {
+    logger.error('[mail] 充值申请邮件提醒失败', { err: err.message });
+  }
+}
+
+// 充值确认到账后通知用户（fire-and-forget：失败不阻断确认主流程）
+async function sendRechargeConfirmedNotify({ to, username, amount, balanceAfter, requestId }) {
+  try {
+    const secret = await mailConfigModel.getSecretConfig();
+    if (!secret || Number(secret.enabled) !== 1) return;
+    if (!mailer.isSmtpUsable(secret)) return;
+    if (Number(secret.notify_recharge) !== 1) return;
+    if (!to) return;
+
+    await mailer.send(secret, {
+      to,
+      subject: '【Anyu】充值到账提醒',
+      html: rechargeHtml({ kind: 'confirmed', username, amount, balanceAfter, requestId })
+    });
+  } catch (err) {
+    logger.error('[mail] 充值到账邮件提醒失败', { err: err.message });
+  }
+}
+
+function rechargeHtml({ kind, username, amount, balanceAfter, requestId, remark }) {
+  const isSubmit = kind === 'submit';
+  const title = isSubmit ? '新的充值申请' : '充值已到账';
+  const rows = `
+    <tr><td style="padding:8px 0;color:#64748b;">用户</td><td style="padding:8px 0;font-weight:600;text-align:right;">${username || '-'}</td></tr>
+    <tr><td style="padding:8px 0;color:#64748b;">申请单号</td><td style="padding:8px 0;font-weight:600;text-align:right;">#${requestId}</td></tr>
+    <tr><td style="padding:8px 0;color:#64748b;">金额</td><td style="padding:8px 0;font-weight:700;color:#10b981;text-align:right;">¥${Number(amount).toFixed(2)}</td></tr>
+    ${isSubmit
+      ? `<tr><td style="padding:8px 0;color:#64748b;">备注</td><td style="padding:8px 0;font-weight:600;text-align:right;">${remark || '-'}</td></tr>`
+      : `<tr><td style="padding:8px 0;color:#64748b;">当前余额</td><td style="padding:8px 0;font-weight:700;color:#6366f1;text-align:right;">¥${Number(balanceAfter).toFixed(2)}</td></tr>`
+    }`;
+  const tip = isSubmit
+    ? '用户已提交充值申请，请登录后台尽快核对并确认到账。'
+    : '您的充值申请已确认到账，余额已更新，祝您购物愉快。';
+  return `
+    <div style="font-family:-apple-system,'Segoe UI','Microsoft YaHei',sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8fafc;border-radius:12px;">
+      <h2 style="color:#1e293b;margin:0 0 16px;">${title}</h2>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;">
+        <p style="margin:0 0 12px;color:#475569;">${tip}</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;color:#1e293b;">${rows}</table>
+      </div>
+      <p style="margin-top:20px;color:#94a3b8;font-size:12px;">此邮件由 Anyu 系统自动发送，请勿直接回复。</p>
+    </div>`;
+}
+
+module.exports = { getConfig, updateConfig, sendTest, sendOrderReminder, sendRechargeSubmitNotify, sendRechargeConfirmedNotify };
